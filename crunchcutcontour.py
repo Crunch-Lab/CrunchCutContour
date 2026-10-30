@@ -24,11 +24,13 @@ Usage :
 """
 
 import argparse
+import math
 import os
 import re
 import struct
 import sys
 
+import eps_interpreteur
 import i18n
 import svg_eps
 from i18n import tr
@@ -45,6 +47,7 @@ DELIMITERS = "()<>[]{}/%"
 NUMBER_RE = re.compile(r"[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$")
 
 DOS_EPS_MAGIC = b"\xc5\xd0\xd3\xc6"
+MM = 72 / 25.4  # points par millimètre
 
 
 def spot_color_code(name):
@@ -199,6 +202,72 @@ def update_dsc_header(text, spot_name):
     return newline.join(lines)
 
 
+def _fmt_pt(v):
+    s = f"{v:.3f}".rstrip("0").rstrip(".")
+    return "0" if s in ("", "-0") else s
+
+
+def recadrer(text, boite):
+    """Ajuste la page EPS sur `boite` (llx, lly, urx, ury, en points) en réécrivant
+    %%BoundingBox, %%HiResBoundingBox et %%PageBoundingBox. Le dessin n'est pas modifié ;
+    les EPS incorporés (%%BeginDocument … %%EndDocument) gardent leurs propres boîtes."""
+    entiere = "{} {} {} {}".format(math.floor(boite[0] + 1e-6), math.floor(boite[1] + 1e-6),
+                                   math.ceil(boite[2] - 1e-6), math.ceil(boite[3] - 1e-6))
+    precise = " ".join(_fmt_pt(v) for v in boite)
+    newline = "\r\n" if "\r\n" in text[:200] else "\n"
+    lignes = text.split(newline)
+    niveau, premiere_bbox, hires = 0, None, False
+    for i, ligne in enumerate(lignes):
+        if ligne.startswith("%%BeginDocument"):
+            niveau += 1
+        elif ligne.startswith("%%EndDocument"):
+            niveau = max(0, niveau - 1)
+        elif niveau == 0:
+            if ligne.startswith("%%BoundingBox:"):
+                lignes[i] = "%%BoundingBox: " + entiere
+                premiere_bbox = i if premiere_bbox is None else premiere_bbox
+            elif ligne.startswith("%%HiResBoundingBox:"):
+                lignes[i] = "%%HiResBoundingBox: " + precise
+                hires = True
+            elif ligne.startswith("%%PageBoundingBox:"):
+                lignes[i] = "%%PageBoundingBox: " + entiere
+    if premiere_bbox is None:
+        fin = next((k for k, l in enumerate(lignes) if l.startswith("%%EndComments")), None)
+        if fin is None:
+            fin = next((k for k, l in enumerate(lignes[1:], 1) if not l.startswith("%")), len(lignes))
+        lignes.insert(fin, "%%BoundingBox: " + entiere)
+        premiere_bbox = fin
+    if not hires:
+        lignes.insert(premiere_bbox + 1, "%%HiResBoundingBox: " + precise)
+    return newline.join(lignes)
+
+
+def ajouter_decoupe(text, boite):
+    """Limite le dessin à `boite` (points) : « gsave … rectclip » après l'en-tête et
+    « grestore » avant le trailer. Sert quand le cadre de recadrage coupe le dessin, pour
+    que rien ne dépasse du cadre, pas même une ligne de coupe."""
+    newline = "\r\n" if "\r\n" in text[:200] else "\n"
+    lignes = text.split(newline)
+    debut = next((k + 1 for k, l in enumerate(lignes) if l.startswith("%%EndComments")), None)
+    if debut is None:
+        debut = next((k for k, l in enumerate(lignes[1:], 1) if not l.startswith("%")), len(lignes))
+    x0, y0, x1, y1 = boite
+    lignes.insert(debut, f"gsave {_fmt_pt(x0)} {_fmt_pt(y0)} {_fmt_pt(x1 - x0)} {_fmt_pt(y1 - y0)} rectclip")
+    fin = next((k for k in range(len(lignes) - 1, debut, -1) if lignes[k].startswith("%%Trailer")), None)
+    if fin is None:
+        fin = next((k for k in range(len(lignes) - 1, debut, -1) if lignes[k].startswith("%%EOF")), None)
+    if fin is None:
+        fin = len(lignes) - 1 if lignes and lignes[-1] == "" else len(lignes)
+    lignes.insert(fin, "grestore")
+    return newline.join(lignes)
+
+
+def recadrer_sur_le_dessin(text, marge_mm):
+    """Recadre la page sur le dessin avec une marge en mm ; renvoie (texte, boîte ou None)."""
+    boite = eps_interpreteur.crop_box(text, marge_mm * MM)
+    return (recadrer(text, boite), boite) if boite else (text, None)
+
+
 def convert_text(text, spot_name="CutContour", tolerance=0.002, rgb_extra=(), cmyk_extra=()):
     """Convertit tout le magenta pur du texte. Renvoie (texte, nombre, opérateurs reconnus)."""
     rgb_ops = {"setrgbcolor", *find_aliases(text, "setrgbcolor"), *rgb_extra}
@@ -247,6 +316,10 @@ def main():
                         help=tr("convert directly, without opening the editor"))
     parser.add_argument("--to-eps", action="store_true",
                         help=tr("SVG: only convert to EPS, without cut line (default output: <input>.eps)"))
+    parser.add_argument("--crop", "--recadrer", dest="recadrer", action="store_true",
+                        help=tr("--auto, --to-eps: crop the page to the drawing"))
+    parser.add_argument("--crop-margin", "--marge", dest="marge", type=float, default=0.0, metavar="MM",
+                        help=tr("--crop: margin around the drawing, in mm (default: 0)"))
     parser.add_argument("--no-browser", "--pas-de-navigateur", dest="pas_de_navigateur", action="store_true",
                         help=tr("editor: print the address without opening the browser"))
     parser.add_argument("--port", type=int, default=0,
@@ -268,6 +341,8 @@ def main():
     if not re.fullmatch(r"[A-Za-z0-9_.-]+", args.nom):
         parser.error(tr("--name may only contain letters, digits, “_”, “.” or “-”"))
 
+    if args.marge < 0:
+        parser.error(tr("--crop-margin must be zero or positive"))
     if (args.auto or args.to_eps) and not args.entree:
         parser.error(tr("--auto and --to-eps require an input file"))
     if not (args.auto or args.to_eps):
@@ -300,12 +375,15 @@ def main():
             sys.exit(tr("Error: {reason}", reason=e))
         for message in avertissements:
             print(tr("Warning: {message}", message=message), file=sys.stderr)
-        data = eps.encode("latin-1")
         if args.to_eps:
+            if args.recadrer:
+                eps = _recadrer_et_signaler(eps, args.marge)
+            data = eps.encode("latin-1")
             with open(sortie, "wb") as fh:
                 fh.write(data)
             print(tr("SVG converted to EPS -> {file}", file=sortie))
             return
+        data = eps.encode("latin-1")
 
     dos_parts = split_dos_eps(data)
     ps_bytes = dos_parts[0] if dos_parts else data
@@ -325,12 +403,25 @@ def main():
     if re.search(r"^%%LanguageLevel:\s*1\b", text, re.M):
         print(tr("Warning: the file declares PostScript level 1; the Separation color space requires level 2."), file=sys.stderr)
 
+    if args.recadrer:
+        text = _recadrer_et_signaler(text, args.marge)
+
     ps_bytes = text.encode("latin-1")
     out = join_dos_eps(ps_bytes, *dos_parts[1:]) if dos_parts else ps_bytes
     with open(sortie, "wb") as fh:
         fh.write(out)
 
     print(tr("{n} magenta setting(s) converted to {spot} -> {file}", n=count, spot=args.nom, file=sortie))
+
+
+def _recadrer_et_signaler(text, marge_mm):
+    text, boite = recadrer_sur_le_dessin(text, marge_mm)
+    if boite is None:
+        print(tr("Warning: {message}", message=tr("nothing to crop, the drawing is empty.")), file=sys.stderr)
+    else:
+        print(tr("Page cropped to the drawing: {w} × {h} mm",
+                 w=i18n.nombre((boite[2] - boite[0]) / MM), h=i18n.nombre((boite[3] - boite[1]) / MM)))
+    return text
 
 
 if __name__ == "__main__":

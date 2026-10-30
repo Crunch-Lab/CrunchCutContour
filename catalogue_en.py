@@ -6,6 +6,8 @@ Modèle pour une nouvelle langue : copier catalogue_fr.py, traduire chaque valeu
 inscrire le module dans i18n.LANGUES.
 """
 
+SEPARATEUR_DECIMAL = "."
+
 CATALOGUE = {}
 
 ARGPARSE = {}

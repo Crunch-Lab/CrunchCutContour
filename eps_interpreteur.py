@@ -1906,3 +1906,67 @@ def bounding_box(text):
             if x1 > x0 and y1 > y0:
                 return x0, y0, x1, y1
     return None
+
+
+def _bezier_bounds(p0, p1, p2, p3):
+    """Boîte exacte d'une courbe de Bézier cubique : extrémités et extrémums (dérivée nulle)."""
+    xs, ys = [p0[0], p3[0]], [p0[1], p3[1]]
+    for i, valeurs in ((0, xs), (1, ys)):
+        # B'(t) / 3 = a t² + b t + c
+        a = -p0[i] + 3 * p1[i] - 3 * p2[i] + p3[i]
+        b = 2 * (p0[i] - 2 * p1[i] + p2[i])
+        c = p1[i] - p0[i]
+        if abs(a) < 1e-12:
+            racines = [-c / b] if abs(b) > 1e-12 else []
+        else:
+            disc = b * b - 4 * a * c
+            racines = [(-b + s * math.sqrt(disc)) / (2 * a) for s in (1, -1)] if disc >= 0 else []
+        for t in racines:
+            if 0 < t < 1:
+                u = 1 - t
+                valeurs.append(u ** 3 * p0[i] + 3 * u * u * t * p1[i] + 3 * u * t * t * p2[i] + t ** 3 * p3[i])
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+def content_box(paints):
+    """Boîte englobante du dessin en points (courbes exactes, traits élargis de leur
+    demi-épaisseur), ou None s'il n'y a rien de dessiné."""
+    boite = None
+    for p in paints:
+        marge = p.width / 2 if p.kind in ("stroke", "rectstroke") else 0.0
+        courant = depart = None
+        for seg in p.segments:
+            if seg[0] == "M":
+                courant = depart = seg[1]
+                continue
+            if seg[0] == "Z":
+                courant = depart
+                continue
+            if seg[0] == "L":
+                (ax, ay), (bx, by) = courant, seg[1]
+                b = (min(ax, bx), min(ay, by), max(ax, bx), max(ay, by))
+                courant = seg[1]
+            else:
+                b = _bezier_bounds(courant, *seg[1:])
+                courant = seg[3]
+            b = (b[0] - marge, b[1] - marge, b[2] + marge, b[3] + marge)
+            boite = b if boite is None else (min(boite[0], b[0]), min(boite[1], b[1]),
+                                             max(boite[2], b[2]), max(boite[3], b[3]))
+    return boite
+
+
+def crop_box(text, margin, paints=None):
+    """Cadre de recadrage en points : le dessin agrandi de `margin`, limité à la page actuelle.
+    None si le dessin est vide ou entièrement hors de la page."""
+    if paints is None:
+        paints = interpret(text)[0]
+    contenu = content_box(paints)
+    if contenu is None:
+        return None
+    boite = (contenu[0] - margin, contenu[1] - margin, contenu[2] + margin, contenu[3] + margin)
+    page = bounding_box(text)
+    if page is not None:
+        boite = (max(boite[0], page[0]), max(boite[1], page[1]), min(boite[2], page[2]), min(boite[3], page[3]))
+    if boite[2] <= boite[0] or boite[3] <= boite[1]:
+        return None
+    return boite

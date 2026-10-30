@@ -7,11 +7,19 @@ remplacés par des valeurs et doivent être recopiés tels quels.
 ARGPARSE : textes anglais du module argparse (aide et erreurs de la ligne de commande).
 """
 
+SEPARATEUR_DECIMAL = ","
+
 CATALOGUE = {
     "--auto and --to-eps require an input file":
         "--auto et --to-eps demandent un fichier d'entrée",
+    "--auto, --to-eps: crop the page to the drawing":
+        "--auto, --to-eps : recadrer la page sur le dessin",
     "--auto: output EPS file (default: <input>_CutContour.eps)":
         "--auto : fichier EPS produit (défaut : <entree>_CutContour.eps)",
+    "--crop-margin must be zero or positive":
+        "--marge doit être positive ou nulle",
+    "--crop: margin around the drawing, in mm (default: 0)":
+        "--recadrer : marge autour du dessin, en mm (défaut : 0)",
     "--name may only contain letters, digits, “_”, “.” or “-”":
         "--nom ne doit contenir que des lettres, chiffres, « _ », « . » ou « - »",
     "--to-eps only applies to SVG files":
@@ -26,6 +34,8 @@ CATALOGUE = {
         "opérateur RVB supplémentaire à reconnaître (répétable)",
     "Author: {name}":
         "Auteur : {name}",
+    "Cancel cropping":
+        "Annuler le recadrage",
     "Check failed: some paths did not turn magenta. Nothing was written.":
         "Vérification échouée : certains tracés ne sont pas passés en magenta. Rien n'a été écrit.",
     "Choose a file…":
@@ -42,6 +52,12 @@ CATALOGUE = {
         "convertir directement, sans ouvrir l'éditeur",
     "Converted SVG, without cut line":
         "SVG converti, sans ligne de découpe",
+    "Crop the page":
+        "Recadrer la page",
+    "Crop to the drawing":
+        "Recadrer sur le dessin",
+    "Crop…":
+        "Recadrer…",
     "Deselect all":
         "Tout désélectionner",
     "division by zero":
@@ -50,6 +66,8 @@ CATALOGUE = {
         "Téléchargé ({format}) : {name}",
     "Drag it from your file manager, or choose it.":
         "Glissez-le depuis l'explorateur de fichiers, ou choisissez-le.",
+    "Drag the edges or corners of the blue frame to adjust it.":
+        "Faites glisser les bords ou les coins du cadre bleu pour l'ajuster.",
     "Drop an EPS or SVG file here":
         "Déposez un fichier EPS ou SVG ici",
     "Drop the EPS or SVG file to open it":
@@ -94,6 +112,8 @@ CATALOGUE = {
         "Les filtres (flou, ombre…) sont ignorés.",
     "Fit":
         "Ajuster",
+    "Fit to drawing":
+        "Ajuster au dessin",
     "Gradients and patterns are replaced by a flat color.":
         "Les dégradés et les motifs sont remplacés par une couleur unie.",
     "image data read by a procedure is not supported":
@@ -104,6 +124,8 @@ CATALOGUE = {
         "langue de l'interface (défaut : celle du système)",
     "Internet Explorer cannot display the editor: open the address above in Chrome, Firefox or Edge.":
         "Internet Explorer ne peut pas afficher l'éditeur : ouvrez l'adresse ci-dessus dans Chrome, Firefox ou Edge.",
+    "Invalid crop frame.":
+        "Cadre de recadrage invalide.",
     "Invalid file name: use a plain name ending in .eps.":
         "Nom de fichier invalide : un simple nom terminé par .eps.",
     "invalid hexadecimal string":
@@ -126,6 +148,8 @@ CATALOGUE = {
         "ligne {line} : {error}",
     "logical operation: booleans or integers expected":
         "opération logique : booléens ou entiers attendus",
+    "Margin":
+        "Marge",
     "Markers (arrowheads…) are ignored.":
         "Les marqueurs (pointes de flèche…) sont ignorés.",
     "NAME":
@@ -144,12 +168,16 @@ CATALOGUE = {
         "Aucun tracé lisible dans « {name} » ({error}).",
     "No readable path in “{name}”.":
         "Aucun tracé lisible dans « {name} ».",
+    "No thanks":
+        "Non merci",
     "non-invertible matrix":
         "matrice non inversible",
     "Not editable":
         "Non modifiable",
     "not editable":
         "non modifiable",
+    "nothing to crop, the drawing is empty.":
+        "rien à recadrer, le dessin est vide.",
     "One file at a time: only the first one is opened.":
         "Un seul fichier à la fois : seul le premier est ouvert.",
     "Open another file…":
@@ -168,6 +196,12 @@ CATALOGUE = {
         "Nom du fichier de sortie",
     "overwrite the output file if it exists":
         "écraser le fichier de sortie s'il existe",
+    "Page cropped to the drawing (applied when saving):":
+        "Page recadrée sur le dessin (appliqué à l'enregistrement) :",
+    "Page cropped to the drawing: {w} × {h} mm":
+        "Page recadrée sur le dessin : {w} × {h} mm",
+    "Page cropped to the frame (applied when saving):":
+        "Page recadrée sur le cadre (appliqué à l'enregistrement) :",
     "Page not found":
         "Page introuvable",
     "Path #{n} — {type} — {color} — {state}":
@@ -218,12 +252,16 @@ CATALOGUE = {
         "Le texte n'est pas converti : vectorisez-le (texte en tracés) avant d'exporter le SVG.",
     "The file could only be partly read ({error}). The paths shown can still be used.":
         "Lecture incomplète du fichier ({error}). Les tracés affichés restent utilisables.",
+    "The frame cuts the drawing: what is outside will be removed.":
+        "Le cadre coupe le dessin : ce qui dépasse sera supprimé.",
     "The output file cannot be read back ({error}): nothing was written.":
         "Le fichier produit ne se relit pas ({error}) : rien n'a été écrit.",
     "the output file must be different from the input file":
         "le fichier de sortie doit être différent du fichier d'entrée",
     "The output file must have a different name from the open file.":
         "Le fichier de sortie doit avoir un autre nom que le fichier ouvert.",
+    "The page ({page}) is larger than the drawing ({drawing}). Crop the page to the drawing?":
+        "La page ({page}) est plus grande que le dessin ({drawing}). Recadrer la page sur le dessin ?",
     "The server is not responding ({reason}).":
         "Le serveur ne répond pas ({reason}).",
     "The SVG contains no shape that can be converted.":
@@ -318,6 +356,8 @@ CATALOGUE = {
         "{op} : clé inconnue {key}",
     "{width} pt stroke":
         "trait de {width} pt",
+    "{w} × {h} mm":
+        "{w} × {h} mm",
     "“{name}” is not an EPS file (it does not start with %!PS).":
         "« {name} » n'est pas un fichier EPS (il ne commence pas par %!PS).",
     "“{name}” is not an EPS or SVG file (.eps or .svg extension expected).":

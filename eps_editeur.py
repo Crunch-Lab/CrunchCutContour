@@ -133,6 +133,7 @@ class Editeur:
         donnees = {
             "fichier": self.name,
             "bbox": bbox,
+            "contenu": interp.content_box(self.paints),
             "traces": traces,
             "erreur": self.error,
             "jeton": token,
@@ -146,9 +147,35 @@ class Editeur:
         payload = json.dumps(donnees, ensure_ascii=False).replace("</", "<\\/")
         return fill_page(PAGE, token).replace("__DONNEES__", payload)
 
-    def save(self, selection, mode, name):
+    @staticmethod
+    def _cadre(recadrage):
+        """Recadrage demandé : ("marge", mm) ou ("boite", (x0, y0, x1, y1) en points).
+
+        Accepte un nombre (marge), {"marge": mm} ou {"boite": [x0, y0, x1, y1]} ;
+        ValueError si la demande est invalide."""
+        def nombre(v, mini=-1e6, maxi=1e6):
+            if isinstance(v, bool) or not isinstance(v, (int, float)) or not mini <= v <= maxi:
+                raise ValueError(v)
+            return float(v)
+        if isinstance(recadrage, dict) and "boite" in recadrage:
+            boite = recadrage["boite"]
+            if not isinstance(boite, list) or len(boite) != 4:
+                raise ValueError(boite)
+            x0, y0, x1, y1 = (nombre(v) for v in boite)
+            if x1 <= x0 or y1 <= y0:
+                raise ValueError(boite)
+            return "boite", (x0, y0, x1, y1)
+        marge = recadrage.get("marge") if isinstance(recadrage, dict) else recadrage
+        return "marge", nombre(marge, 0, 1000)
+
+    def save(self, selection, mode, name, recadrage=None):
+        """Enregistre ; `recadrage` recadre la page (voir _cadre)."""
         if mode not in ("cutcontour", "magenta", "eps") or (mode == "eps" and not self.svg):
             return {"ok": False, "message": tr("Unknown save mode.")}
+        try:
+            cadre = self._cadre(recadrage) if recadrage is not None else None
+        except (ValueError, TypeError):
+            return {"ok": False, "message": tr("Invalid crop frame.")}
         if not isinstance(name, str) or not re.fullmatch(r"[^/\\:*?\"<>|\0]+\.eps", name, re.I) \
                 or name in (".eps", "..eps"):
             return {"ok": False, "message": tr("Invalid file name: use a plain name ending in .eps.")}
@@ -178,6 +205,22 @@ class Editeur:
         expected = len(chosen | {i for i, p in enumerate(self.paints) if self.magenta(p)}) if mode != "eps" else 0
         if sum(1 for p in check if self.magenta(p)) < expected:
             return {"ok": False, "message": tr("Check failed: some paths did not turn magenta. Nothing was written.")}
+
+        if cadre and cadre[0] == "marge":
+            boite = interp.crop_box(text, cadre[1] * conv.MM, paints=check)
+            if boite:
+                text = conv.recadrer(text, boite)
+        elif cadre:
+            boite, page = cadre[1], interp.bounding_box(text)
+            if page:
+                boite = (max(boite[0], page[0]), max(boite[1], page[1]), min(boite[2], page[2]), min(boite[3], page[3]))
+            if boite[2] <= boite[0] or boite[3] <= boite[1]:
+                return {"ok": False, "message": tr("Invalid crop frame.")}
+            contenu = interp.content_box(check)
+            if contenu and (contenu[0] < boite[0] - 0.01 or contenu[1] < boite[1] - 0.01
+                            or contenu[2] > boite[2] + 0.01 or contenu[3] > boite[3] + 0.01):
+                text = conv.ajouter_decoupe(text, boite)   # le cadre coupe le dessin
+            text = conv.recadrer(text, boite)
 
         data = text.encode("latin-1")
         if self.dos_parts:
@@ -311,7 +354,8 @@ def make_handler(app):
                 if app.ed is None:
                     result = {"ok": False, "message": tr("No file is open.")}
                 else:
-                    result = app.ed.save(body.get("selection") or [], body.get("mode"), body.get("nom"))
+                    result = app.ed.save(body.get("selection") or [], body.get("mode"), body.get("nom"),
+                                         body.get("recadrage"))
             elif self.path == "/api/quitter":
                 result = {"ok": True}
                 threading.Thread(target=self.server.shutdown, daemon=True).start()
@@ -425,7 +469,7 @@ h1 { font-size: 15px; margin: 0; font-weight: 600; }
 h1 small { font-weight: 400; color: var(--doux); }
 .groupe { display: flex; align-items: center; gap: 6px; }
 .espace { flex: 1; }
-button, input[type=text] { font: inherit; color: var(--texte); background: var(--fond);
+button, input[type=text], input[type=number] { font: inherit; color: var(--texte); background: var(--fond);
        border: 1px solid var(--bord); border-radius: 6px; padding: 5px 10px; }
 button { cursor: pointer; }
 button:hover { border-color: var(--doux); }
@@ -442,6 +486,14 @@ footer { display: flex; gap: 16px; align-items: center; padding: 8px 16px; backg
 #info { color: var(--doux); flex: 1; }
 .credit { color: var(--doux); font-size: 12px; white-space: nowrap; }
 #message.ok { color: var(--ok); } #message.erreur { color: var(--erreur); }
+#proposition { padding: 8px 16px; background: #e8f2ff; color: #0b3a6f; border-bottom: 1px solid #9cc4f0;
+                gap: 8px 12px; align-items: center; flex-wrap: wrap; }
+#proposition:not([hidden]), #reglage-recadrage:not([hidden]) { display: flex; }
+#reglage-recadrage { gap: 8px 12px; align-items: center; flex-wrap: wrap; }
+#marge { width: 72px; }
+#aide-recadrage { font-size: 12px; opacity: .85; }
+#coupe-recadrage { color: #b3261e; font-weight: 600; }
+button[aria-pressed=true] { border-color: var(--survol); background: #e8f2ff; color: #0b3a6f; }
 #alerte { display: none; padding: 8px 16px; background: #fff4e5; color: #6b3d00; border-bottom: 1px solid #f0c27b; }
 #legende { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 20px; padding: 6px 16px;
            background: var(--barre); border-bottom: 1px solid var(--bord); color: var(--doux); }
@@ -496,6 +548,7 @@ if (!window.fetch || !window.Promise || !("noModule" in document.createElement("
     <button id="plus" title="[[Zoom in]]">+</button>
   </div>
   <button id="aucun">[[Deselect all]]</button>
+  <button id="bouton-recadrer" title="[[Crop the page]]" aria-pressed="false">[[Crop…]]</button>
   <button id="ouvrir" title="[[Or drop an EPS or SVG file anywhere on the page]]">[[Open another file…]]</button>
   <input type="file" id="choisir" accept=".eps,.epsf,.ps,.svg,.svgz" hidden>
   <span class="espace"></span>
@@ -528,6 +581,19 @@ if (!window.fetch || !window.Promise || !("noModule" in document.createElement("
   <label class="item"><input type="checkbox" id="estomper"> [[Fade artwork]]</label>
 </div>
 <div id="alerte"></div>
+<div id="proposition" hidden>
+  <span id="texte-proposition"></span>
+  <button class="principal" id="recadrer">[[Crop to the drawing]]</button>
+  <button id="ignorer">[[No thanks]]</button>
+  <span id="reglage-recadrage" hidden>
+    <label>[[Margin]] <input type="number" id="marge" min="0" max="1000" step="0.5" value="0"> mm</label>
+    <button id="ajuster-dessin">[[Fit to drawing]]</button>
+    <b id="taille-recadrage"></b>
+    <span id="aide-recadrage">[[Drag the edges or corners of the blue frame to adjust it.]]</span>
+    <span id="coupe-recadrage" hidden>[[The frame cuts the drawing: what is outside will be removed.]]</span>
+    <button id="annuler-recadrage">[[Cancel cropping]]</button>
+  </span>
+</div>
 <div id="notification" role="status" aria-live="polite"></div>
 <div id="voile-depot">[[Drop the EPS or SVG file to open it]]</div>
 <div id="zone"><div id="papier"><svg id="dessin" xmlns="http://www.w3.org/2000/svg"></svg></div></div>
@@ -576,6 +642,7 @@ const racine = el("g", {transform: "scale(1,-1)"}, svg);
 const gRendu = el("g", {"pointer-events": "none"}, racine);
 const gBloques = el("g", {"pointer-events": "none", display: "none"}, racine);
 const gContours = el("g", {"pointer-events": "none"}, racine);
+const gRecadrage = el("g", {"pointer-events": "none"}, racine);
 const gSurvol = el("g", {"pointer-events": "none"}, racine);
 const gCibles = el("g", {}, racine);
 
@@ -679,6 +746,100 @@ $("estomper").addEventListener("change", e => {
 for (let i = 0; i < D.traces.length; i++) dessinerEtat(i);
 majInfo();
 
+// Recadrage : bouton « Recadrer… » ; cadre automatique (dessin + marge) ou ajusté à la souris.
+// Proposé d'office quand la page dépasse le dessin de plus de 1 mm d'un côté.
+const MM = 72 / 25.4;
+const CONTENU = D.contenu || [x0, y0, x1, y1];
+const proposable = !!D.contenu &&
+  Math.max(D.contenu[0] - x0, D.contenu[1] - y0, x1 - D.contenu[2], y1 - D.contenu[3]) > MM;
+let recadrage = false;
+let cadreManuel = null;   // [x0, y0, x1, y1] en points, une fois le cadre ajusté à la souris
+let glisse = null;        // poignée en cours de déplacement : g(auche), d(roite), b(as), h(aut), ou un coin
+const gPoignees = el("g", {}, racine);   // au-dessus des cibles de clic
+const mm = v => (v / MM).toLocaleString(LANGUE, {maximumFractionDigits: 1});
+const taille = (l, h) => t("{w} × {h} mm", {w: mm(l), h: mm(h)});
+function margeRecadrage() { return Math.max(0, Math.min(1000, parseFloat($("marge").value) || 0)); }
+function cadreAuto() {
+  const m = margeRecadrage() * MM, [a, b, c, d] = CONTENU;
+  return [Math.max(x0, a - m), Math.max(y0, b - m), Math.min(x1, c + m), Math.min(y1, d + m)];
+}
+function cadre() { return cadreManuel || cadreAuto(); }
+function coupeLeDessin([a, b, c, d]) {
+  return !!D.contenu && (a > CONTENU[0] + 0.01 || b > CONTENU[1] + 0.01 || c < CONTENU[2] - 0.01 || d < CONTENU[3] - 0.01);
+}
+function dessinerRecadrage() {
+  gRecadrage.replaceChildren();
+  gPoignees.replaceChildren();
+  $("bouton-recadrer").setAttribute("aria-pressed", String(recadrage));
+  if (!recadrage) return;
+  const [a, b, c, d] = cadre();
+  const contour = `M${a} ${b}H${c}V${d}H${a}Z`;
+  el("path", {d: `M${x0} ${y0}H${x1}V${y1}H${x0}Z${contour}`, fill: "#000", "fill-opacity": 0.3,
+              "fill-rule": "evenodd"}, gRecadrage);
+  el("path", {d: contour, fill: "none", stroke: "#0091FF", "stroke-width": 1.5, "stroke-dasharray": "6 4",
+              "vector-effect": "non-scaling-stroke"}, gRecadrage);
+  // Poignées : les bords sont des traits épais invisibles, les coins de petits carrés bleus.
+  // L'axe y de la page monte : « h » (haut) est le bord y = d.
+  for (const [cote, trace, curseur] of [
+      ["g", `M${a} ${b}V${d}`, "ew-resize"], ["d", `M${c} ${b}V${d}`, "ew-resize"],
+      ["b", `M${a} ${b}H${c}`, "ns-resize"], ["h", `M${a} ${d}H${c}`, "ns-resize"],
+      ["gb", `M${a} ${b}h0`, "nesw-resize"], ["dh", `M${c} ${d}h0`, "nesw-resize"],
+      ["gh", `M${a} ${d}h0`, "nwse-resize"], ["db", `M${c} ${b}h0`, "nwse-resize"]]) {
+    const coin = cote.length === 2;
+    const p = el("path", {d: trace, fill: "none", stroke: coin ? "#0091FF" : "#000", "stroke-opacity": coin ? 1 : 0,
+                          "stroke-width": coin ? 10 : 12, "stroke-linecap": "square", "pointer-events": "stroke",
+                          "vector-effect": "non-scaling-stroke", style: `cursor:${curseur}`}, gPoignees);
+    p.addEventListener("pointerdown", e => {
+      e.preventDefault();
+      e.stopPropagation();
+      glisse = cote;
+      cadreManuel = cadre();
+    });
+  }
+  $("taille-recadrage").textContent = taille(c - a, d - b);
+  $("coupe-recadrage").hidden = !coupeLeDessin([a, b, c, d]);
+  $("texte-proposition").textContent = cadreManuel
+    ? t("Page cropped to the frame (applied when saving):")
+    : t("Page cropped to the drawing (applied when saving):");
+}
+function pointPage(e) {
+  const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(racine.getScreenCTM().inverse());
+  return [Math.min(x1, Math.max(x0, p.x)), Math.min(y1, Math.max(y0, p.y))];
+}
+window.addEventListener("pointermove", e => {
+  if (!glisse) return;
+  const [x, y] = pointPage(e);
+  let [a, b, c, d] = cadreManuel;
+  if (glisse.includes("g")) a = Math.min(x, c - MM);
+  if (glisse.includes("d")) c = Math.max(x, a + MM);
+  if (glisse.includes("b")) b = Math.min(y, d - MM);
+  if (glisse.includes("h")) d = Math.max(y, b + MM);
+  cadreManuel = [a, b, c, d];
+  dessinerRecadrage();
+});
+window.addEventListener("pointerup", () => { glisse = null; });
+function activerRecadrage(actif) {
+  recadrage = actif;
+  if (!actif) cadreManuel = null;
+  $("proposition").hidden = !actif && !proposable;
+  $("recadrer").hidden = $("ignorer").hidden = actif;
+  $("reglage-recadrage").hidden = !actif;
+  if (!actif && proposable) {
+    $("texte-proposition").textContent = t("The page ({page}) is larger than the drawing ({drawing}). Crop the page to the drawing?",
+      {page: taille(W, H), drawing: taille(CONTENU[2] - CONTENU[0], CONTENU[3] - CONTENU[1])});
+  }
+  dessinerRecadrage();
+}
+activerRecadrage(false);
+$("recadrer").onclick = () => activerRecadrage(true);
+$("bouton-recadrer").onclick = () => {
+  if (recadrage) { activerRecadrage(false); $("proposition").hidden = true; } else activerRecadrage(true);
+};
+$("annuler-recadrage").onclick = () => activerRecadrage(false);
+$("ignorer").onclick = () => { $("proposition").hidden = true; };
+$("ajuster-dessin").onclick = () => { cadreManuel = null; dessinerRecadrage(); };
+$("marge").addEventListener("input", () => { cadreManuel = null; dessinerRecadrage(); });
+
 // Zoom
 let zoom = 1;
 function appliquerZoom() {
@@ -722,7 +883,8 @@ window.avantChangementLangue = () => {
   try {
     sessionStorage.setItem(CLE_ETAT, JSON.stringify({
       fichier: D.fichier, nb: D.traces.length, selection: [...selection], mode: modeCourant(),
-      nom: $("nom").value, nomModifie, estomper: $("estomper").checked}));
+      nom: $("nom").value, nomModifie, estomper: $("estomper").checked,
+      recadrage, cadreManuel, marge: $("marge").value, proposition: !$("proposition").hidden}));
   } catch (e) { /* stockage indisponible : la sélection sera perdue */ }
 };
 try {
@@ -736,6 +898,14 @@ try {
     $("nom").value = etat.nom;
     nomModifie = etat.nomModifie;
     if (etat.estomper) { $("estomper").checked = true; $("estomper").dispatchEvent(new Event("change")); }
+    $("marge").value = etat.marge;
+    if (etat.recadrage) {
+      activerRecadrage(true);
+      if (Array.isArray(etat.cadreManuel) && etat.cadreManuel.length === 4) {
+        cadreManuel = etat.cadreManuel.map(Number);
+        dessinerRecadrage();
+      }
+    } else if (!etat.proposition) $("proposition").hidden = true;
     for (let i = 0; i < D.traces.length; i++) dessinerEtat(i);
     majInfo();
   }
@@ -787,7 +957,9 @@ async function appeler(chemin, corps) {
 $("enregistrer").onclick = async () => {
   message(t("Saving…"), "");
   try {
-    const res = await appeler("/api/enregistrer", {selection: [...selection], mode: modeCourant(), nom: $("nom").value.trim()});
+    const res = await appeler("/api/enregistrer", {selection: [...selection], mode: modeCourant(), nom: $("nom").value.trim(),
+                                                      recadrage: !recadrage ? null
+                                                        : cadreManuel ? {boite: cadreManuel} : {marge: margeRecadrage()}});
     message(res.message, res.ok ? "ok" : "erreur");
     if (res.ok && res.donnees) {
       telecharger(res.nom, res.donnees);

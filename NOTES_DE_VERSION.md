@@ -25,6 +25,9 @@ qui n'est plus mis à jour : sous Windows 10 et 11, préférez la version 10/11.
   en CutContour ou en magenta pur.
 - **SVG** : un fichier SVG est converti en EPS à l'ouverture. `CrunchCutContour --to-eps logo.svg`
   fait une simple conversion SVG → EPS. Le texte doit être vectorisé avant l'export.
+- **Recadrage** : bouton **Recadrer…** dans l'éditeur, proposé d'office quand la page est plus
+  grande que le dessin ; cadre automatique avec marge, ou ajusté à la souris
+  (`--crop --crop-margin 2` en ligne de commande).
 - Conversion sans éditeur : `CrunchCutContour --auto fichier.eps` convertit tout le magenta pur
   du fichier en CutContour.
 - La fenêtre de terminal reste ouverte pendant l'utilisation : la fermer, ou cliquer sur

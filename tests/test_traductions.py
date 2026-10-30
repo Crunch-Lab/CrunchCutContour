@@ -115,6 +115,12 @@ class Langue(unittest.TestCase):
         self.assertEqual(i18n.tr("{n} path(s) read from {name}.", n=3, name="a.eps"),
                          "3 path(s) read from a.eps.")
 
+    def test_separateur_decimal(self):
+        i18n.choisir("fr")
+        self.assertEqual(i18n.nombre(84.5), "84,5")
+        i18n.choisir("en")
+        self.assertEqual(i18n.nombre(84.5), "84.5")
+
     def test_texte_inconnu_rendu_tel_quel(self):
         i18n.choisir("fr")
         self.assertEqual(i18n.tr("not in any catalog"), "not in any catalog")

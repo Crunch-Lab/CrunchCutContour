@@ -91,6 +91,22 @@ cliquer sur **Quitter** dans la page arrête le programme.
 - **Tout désélectionner** retire les coupes ajoutées ; **Ouvrir un autre fichier…** (ou un
   dépôt n'importe où dans la page) remplace le document, sans demander de confirmation.
 
+### Recadrer la page
+
+Le bouton **Recadrer…** de la barre d'outils active le recadrage à tout moment ; quand la page
+dépasse le dessin de plus de 1 mm d'un côté (cas fréquent des SVG), un bandeau bleu le propose
+aussi d'office.
+
+- Le cadre s'affiche en pointillés bleus et l'extérieur est grisé. Par défaut, il entoure tout
+  le dessin (courbes exactes, épaisseur des traits comprise) avec une **marge** réglable en mm.
+- **À la souris** : faites glisser les bords ou les coins du cadre pour l'ajuster ;
+  **Ajuster au dessin** (ou un changement de marge) revient au cadre automatique.
+- Le cadre ne dépasse jamais la page d'origine. S'il coupe le dessin, un avertissement rouge
+  l'indique : à l'enregistrement, ce qui dépasse est supprimé (découpe PostScript), lignes de
+  coupe comprises.
+- Le recadrage est appliqué à l'enregistrement ; **Annuler le recadrage**, **Non merci** ou un
+  second clic sur **Recadrer…** le retirent.
+
 ### Enregistrer
 
 Choisissez le format puis cliquez sur **Enregistrer** :
@@ -127,6 +143,8 @@ Depuis les sources, remplacez `CrunchCutContour` par `python3 crunchcutcontour.p
 | `fichier.eps`, `fichier.svg` | Éditeur ouvert sur ce fichier |
 | `--auto` | Conversion directe, sans éditeur : tout le magenta pur devient CutContour |
 | `--to-eps` | SVG : conversion en EPS seulement, sans ligne de découpe (défaut : `<fichier>.eps`) |
+| `--crop` | Avec `--auto` ou `--to-eps` : recadrer la page sur le dessin |
+| `--crop-margin MM` | Avec `--crop` : marge autour du dessin, en mm (défaut : 0) |
 | `-o`, `--output FICHIER` | Avec `--auto` : fichier produit (défaut : `<fichier>_CutContour.eps`) |
 | `-f`, `--force` | Avec `--auto` : écraser le fichier produit s'il existe |
 | `--name NOM` | Nom du ton direct (défaut : `CutContour`) |
@@ -137,8 +155,8 @@ Depuis les sources, remplacez `CrunchCutContour` par `python3 crunchcutcontour.p
 | `--port PORT` | Éditeur : port local à utiliser (défaut : aléatoire) |
 | `--version` | Afficher la version |
 
-Les noms français des options de la version 1.0.0 restent acceptés : `--sortie`, `--nom`,
-`--op-rvb`, `--op-cmjn`, `--langue`, `--pas-de-navigateur`.
+Les noms français des options restent acceptés : `--sortie`, `--nom`, `--op-rvb`,
+`--op-cmjn`, `--langue`, `--pas-de-navigateur`, `--recadrer`, `--marge`.
 
 Exemples :
 
@@ -152,6 +170,10 @@ CrunchCutContour --auto stickers.eps -o pret_a_decouper.eps --force
 
 ```bash
 CrunchCutContour --to-eps logo.svg
+```
+
+```bash
+CrunchCutContour --auto logo.svg --crop --crop-margin 2
 ```
 
 ## Langues
@@ -186,6 +208,10 @@ près (fins de ligne, données binaires, aperçu TIFF/WMF des EPS « DOS » comp
   Les textes, commentaires et données d'image ne sont jamais modifiés.
 - **Contour choisi dans l'éditeur** : l'instruction qui le peint est entourée d'un réglage de
   couleur dans un `gsave … grestore`, ce qui ne change rien au reste du dessin.
+- **Recadrage** : les boîtes de l'en-tête changent (`%%BoundingBox`, `%%HiResBoundingBox`,
+  `%%PageBoundingBox`, y compris une boîte `(atend)` du trailer) ; les EPS incorporés gardent les
+  leurs. Le dessin n'est modifié que si le cadre le coupe : il est alors entouré d'un
+  `gsave … rectclip` / `grestore`.
 - **En-tête** : le ton direct est déclaré dans les commentaires DSC (`%%DocumentCustomColors`
   et `%%CMYKCustomColor`), en conservant les autres tons directs déjà déclarés.
 

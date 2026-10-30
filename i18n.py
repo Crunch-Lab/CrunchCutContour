@@ -37,6 +37,12 @@ def tr(texte, **valeurs):
     return traduit.format(**valeurs) if valeurs else traduit
 
 
+def nombre(valeur, decimales=1):
+    """Nombre écrit avec le séparateur décimal de la langue courante (0.5 / 0,5)."""
+    texte = f"{valeur:.{decimales}f}"
+    return texte.replace(".", getattr(LANGUES[_courante][1], "SEPARATEUR_DECIMAL", "."))
+
+
 def langue():
     return _courante
 
