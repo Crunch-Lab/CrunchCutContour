@@ -7,6 +7,7 @@ et reçoit l'ordre d'enregistrement ; aucune dépendance hors bibliothèque stan
 """
 
 import base64
+import html
 import http.server
 import json
 import os
@@ -20,6 +21,8 @@ import webbrowser
 
 import eps_cutcontour as conv
 import eps_interpreteur as interp
+import i18n
+from i18n import tr
 
 MAGENTA = "1 0 1 setrgbcolor"
 CUT_WIDTH = 0.25  # épaisseur (pt) du contour ajouté autour d'un aplat
@@ -81,12 +84,13 @@ class Editeur:
         self.dos_parts = conv.split_dos_eps(data)
         ps_bytes = self.dos_parts[0] if self.dos_parts else data
         if not ps_bytes.startswith(b"%!PS"):
-            raise ValueError(f"« {self.name} » n'est pas un fichier EPS (il ne commence pas par %!PS).")
+            raise ValueError(tr("“{name}” is not an EPS file (it does not start with %!PS).", name=self.name))
         self.text = ps_bytes.decode("latin-1")
         self.paints, self.error = interp.interpret(self.text)
         if not self.paints:
-            raise ValueError(f"Aucun tracé lisible dans « {self.name} »" +
-                             (f" ({self.error})." if self.error else "."))
+            if self.error:
+                raise ValueError(tr("No readable path in “{name}” ({error}).", name=self.name, error=self.error))
+            raise ValueError(tr("No readable path in “{name}”.", name=self.name))
 
     @classmethod
     def from_path(cls, path, spot_name, tolerance):
@@ -129,47 +133,48 @@ class Editeur:
 
     def save(self, selection, mode, name):
         if mode not in ("cutcontour", "magenta"):
-            return {"ok": False, "message": "Mode d'enregistrement inconnu."}
+            return {"ok": False, "message": tr("Unknown save mode.")}
         if not isinstance(name, str) or not re.fullmatch(r"[^/\\:*?\"<>|\0]+\.eps", name, re.I) \
                 or name in (".eps", "..eps"):
-            return {"ok": False, "message": "Nom de fichier invalide : un simple nom terminé par .eps."}
+            return {"ok": False, "message": tr("Invalid file name: use a plain name ending in .eps.")}
         out = os.path.join(self.directory, name) if self.directory else None
         if name == self.name:
-            return {"ok": False, "message": "Le fichier de sortie doit avoir un autre nom que le fichier ouvert."}
+            return {"ok": False, "message": tr("The output file must have a different name from the open file.")}
 
         chosen = {i for i in selection if isinstance(i, int) and 0 <= i < len(self.paints)
                   and self.paints[i].editable and self.paints[i].spot != self.spot_name}
         if mode == "magenta":
             chosen = {i for i in chosen if not self.magenta(self.paints[i])}
             if not chosen:
-                return {"ok": False, "message": "Aucun nouveau tracé sélectionné : rien à enregistrer."}
+                return {"ok": False, "message": tr("No new path selected: nothing to save.")}
         text = apply_selection(self.text, self.paints, chosen)
         if mode == "cutcontour":
             text, count, _ = conv.convert_text(text, self.spot_name, self.tolerance)
             if count == 0:
-                return {"ok": False, "message": "Aucun tracé à convertir : rien à enregistrer."}
+                return {"ok": False, "message": tr("No path to convert: nothing to save.")}
 
         # Vérification : le fichier produit doit se relire, avec au moins autant de tracés magenta.
         check, error = interp.interpret(text)
         if error and not self.error:
-            return {"ok": False, "message": f"Le fichier produit ne se relit pas ({error}) : rien n'a été écrit."}
+            return {"ok": False, "message": tr("The output file cannot be read back ({error}): nothing was written.",
+                                               error=error)}
         expected = len(chosen | {i for i, p in enumerate(self.paints) if self.magenta(p)})
         if sum(1 for p in check if self.magenta(p)) < expected:
-            return {"ok": False, "message": "Vérification échouée : certains tracés ne sont pas passés "
-                                            "en magenta. Rien n'a été écrit."}
+            return {"ok": False, "message": tr("Check failed: some paths did not turn magenta. Nothing was written.")}
 
         data = text.encode("latin-1")
         if self.dos_parts:
             data = conv.join_dos_eps(data, *self.dos_parts[1:])
-        label = self.spot_name if mode == "cutcontour" else "magenta pur"
+        label = self.spot_name if mode == "cutcontour" else tr("pure magenta")
         if out is None:
             return {"ok": True, "nom": name, "donnees": base64.b64encode(data).decode("ascii"),
-                    "message": f"Téléchargé ({label}) : {name}"}
+                    "message": tr("Downloaded ({format}): {name}", format=label, name=name)}
         existed = os.path.exists(out)
         with open(out, "wb") as fh:
             fh.write(data)
-        return {"ok": True, "chemin": out,
-                "message": f"Enregistré ({label}{', fichier remplacé' if existed else ''}) : {out}"}
+        message = (tr("Saved ({format}, existing file replaced): {path}", format=label, path=out) if existed
+                   else tr("Saved ({format}): {path}", format=label, path=out))
+        return {"ok": True, "chemin": out, "message": message}
 
 
 MAX_UPLOAD = 200 * 1024 * 1024
@@ -189,15 +194,30 @@ class Application:
         except ValueError as e:
             return {"ok": False, "message": str(e)}
         self.ed = ed
-        print(f"{len(ed.paints)} tracé(s) lus dans {ed.name} (déposé dans le navigateur).")
+        print(tr("{n} path(s) read from {name} (dropped in the browser).", n=len(ed.paints), name=ed.name))
         return {"ok": True}
 
     def page(self):
         return self.ed.page(self.token) if self.ed else fill_page(PAGE_DEPOT, self.token)
 
 
+def _json_script(value):
+    """JSON utilisable tel quel dans un <script>."""
+    return json.dumps(value, ensure_ascii=False).replace("</", "<\\/")
+
+
 def fill_page(template, token):
-    return (template.replace("__STYLE__", STYLE).replace("__DEPOT_JS__", DEPOT_JS)
+    """Assemble une page : style et scripts communs, textes entre doubles crochets traduits, données."""
+    page = (template.replace("__STYLE__", STYLE).replace("__DEPOT_JS__", DEPOT_JS)
+            .replace("__I18N_JS__", I18N_JS))
+    page = re.sub(r"\[\[(.+?)\]\]", lambda m: html.escape(tr(m.group(1))), page)
+    options = "".join(f'<option value="{code}"{" selected" if code == i18n.langue() else ""}>'
+                      f'{html.escape(nom)}</option>' for code, (nom, _) in i18n.LANGUES.items())
+    ancien = (html.escape(tr("This browser is too old for the editor (Internet Explorer is not supported)."))
+              + "<br>" + html.escape(tr("Open this address in Chrome, Firefox or Edge:")) + "<br><b>")
+    return (page.replace("__LANGUES__", options).replace("__LANG__", i18n.langue())
+            .replace("__ANCIEN__", json.dumps(ancien))
+            .replace("__TRADUCTIONS__", _json_script(i18n.catalogue()))
             .replace("__JETON__", json.dumps(token)))
 
 
@@ -215,10 +235,14 @@ def make_handler(app):
             self.wfile.write(body)
 
         def do_GET(self):
-            if self.path == "/" + app.token:
+            url = urllib.parse.urlsplit(self.path)
+            if url.path == "/" + app.token:
+                langue = urllib.parse.parse_qs(url.query).get("langue")
+                if langue:
+                    i18n.choisir(langue[0])
                 self._send(200, app.page().encode("utf-8"), "text/html; charset=utf-8")
             else:
-                self._send(404, "Page introuvable".encode(), "text/plain; charset=utf-8")
+                self._send(404, tr("Page not found").encode("utf-8"), "text/plain; charset=utf-8")
 
         def _json(self, result):
             self._send(200, json.dumps(result, ensure_ascii=False).encode("utf-8"), "application/json")
@@ -232,7 +256,7 @@ def make_handler(app):
             except ValueError:
                 length = -1
             if not 0 <= length <= MAX_UPLOAD:
-                self._json({"ok": False, "message": "Fichier trop volumineux ou requête invalide."})
+                self._json({"ok": False, "message": tr("File too large or invalid request.")})
                 return
             raw = self.rfile.read(length)
             if self.path == "/api/ouvrir":
@@ -245,7 +269,7 @@ def make_handler(app):
                 return
             if self.path == "/api/enregistrer":
                 if app.ed is None:
-                    result = {"ok": False, "message": "Aucun fichier ouvert."}
+                    result = {"ok": False, "message": tr("No file is open.")}
                 else:
                     result = app.ed.save(body.get("selection") or [], body.get("mode"), body.get("nom"))
             elif self.path == "/api/quitter":
@@ -293,8 +317,7 @@ def open_browser(url):
                 return
             except OSError:
                 pass
-        print("Internet Explorer ne peut pas afficher l'éditeur : ouvrez l'adresse ci-dessus "
-              "dans Chrome, Firefox ou Edge.")
+        print(tr("Internet Explorer cannot display the editor: open the address above in Chrome, Firefox or Edge."))
         return
     try:
         with open("/proc/version") as fh:
@@ -322,18 +345,18 @@ def run(path=None, spot_name="CutContour", tolerance=0.002, browser=True, port=0
         try:
             app.ed = Editeur.from_path(path, spot_name, tolerance)
         except (OSError, ValueError) as e:
-            sys.exit(f"Erreur : {e}")
+            sys.exit(tr("Error: {reason}", reason=e.strerror if isinstance(e, OSError) and e.strerror else e))
         if app.ed.error:
-            print(f"Attention : lecture incomplète du fichier ({app.ed.error}).", file=sys.stderr)
-        print(f"{len(app.ed.paints)} tracé(s) lus dans {app.ed.name}.")
+            print(tr("Warning: the file could only be partly read ({error}).", error=app.ed.error), file=sys.stderr)
+        print(tr("{n} path(s) read from {name}.", n=len(app.ed.paints), name=app.ed.name))
     else:
-        print("Aucun fichier indiqué : déposez un fichier EPS dans la page du navigateur.")
+        print(tr("No file given: drop an EPS file onto the page in your browser."))
 
     server = http.server.ThreadingHTTPServer(("127.0.0.1", port), make_handler(app))
     url = f"http://127.0.0.1:{server.server_address[1]}/{app.token}"
-    print(f"Éditeur ouvert sur : {url}")
-    print("Gardez cette fenêtre ouverte pendant l'utilisation.")
-    print("Ctrl+C ou le bouton « Quitter » pour arrêter.")
+    print(tr("Editor running at: {url}", url=url))
+    print(tr("Keep this window open while you work."))
+    print(tr("Press Ctrl+C or the “Quit” button to stop."))
     if browser:
         open_browser(url)
     try:
@@ -406,11 +429,11 @@ body.depot-survol #cadre-depot { border-color: var(--accent); }
 """
 
 PAGE = r"""<!doctype html>
-<html lang="fr">
+<html lang="__LANG__">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Éditeur CutContour</title>
+<title>[[CutContour Editor]]</title>
 <style>
 __STYLE__
 </style>
@@ -420,50 +443,50 @@ __STYLE__
 /* Écrit en ES3 : doit s'exécuter même dans un navigateur trop ancien pour l'éditeur. */
 if (!window.fetch || !window.Promise || !("noModule" in document.createElement("script"))) {
   document.write('<div style="padding:16px;margin:16px;border:2px solid #b3261e;background:#fff;color:#b3261e;font:16px sans-serif">' +
-    "Ce navigateur est trop ancien pour l'éditeur (Internet Explorer n'est pas pris en charge).<br>" +
-    "Ouvrez cette adresse dans Chrome, Firefox ou Edge :<br><b>" + location.href + "</b></div>");
+    __ANCIEN__ + location.href + "</b></div>");
 }
 </script>
 <header>
-  <h1>Éditeur CutContour <small id="fichier"></small></h1>
+  <h1>[[CutContour Editor]] <small id="fichier"></small></h1>
   <div class="groupe">
-    <button id="moins" title="Zoom arrière">−</button>
-    <button id="ajuster">Ajuster</button>
-    <button id="plus" title="Zoom avant">+</button>
+    <button id="moins" title="[[Zoom out]]">−</button>
+    <button id="ajuster">[[Fit]]</button>
+    <button id="plus" title="[[Zoom in]]">+</button>
   </div>
-  <button id="aucun">Tout désélectionner</button>
-  <button id="ouvrir" title="Ou déposez un fichier EPS n'importe où dans la page">Ouvrir un autre fichier…</button>
+  <button id="aucun">[[Deselect all]]</button>
+  <button id="ouvrir" title="[[Or drop an EPS file anywhere on the page]]">[[Open another file…]]</button>
   <input type="file" id="choisir" accept=".eps,.epsf,.ps" hidden>
   <span class="espace"></span>
   <div class="groupe">
     <label><input type="radio" name="mode" value="cutcontour" checked> <span id="nom-ton"></span></label>
-    <label><input type="radio" name="mode" value="magenta"> Magenta pur</label>
+    <label><input type="radio" name="mode" value="magenta"> [[Pure magenta]]</label>
   </div>
   <div class="groupe">
-    <input type="text" id="nom" spellcheck="false" aria-label="Nom du fichier de sortie">
-    <button class="principal" id="enregistrer">Enregistrer</button>
-    <button id="quitter">Quitter</button>
+    <input type="text" id="nom" spellcheck="false" aria-label="[[Output file name]]">
+    <button class="principal" id="enregistrer">[[Save]]</button>
+    <select id="langue" aria-label="[[Language]]">__LANGUES__</select>
+    <button id="quitter">[[Quit]]</button>
   </div>
 </header>
 <div id="legende">
   <span class="item">
     <svg width="34" height="14"><path d="M3 7H31" stroke="#FF00FF" stroke-width="2.5"/></svg>
-    Coupe d'origine <b id="n-origine">0</b>
+    [[Original cut]] <b id="n-origine">0</b>
   </span>
   <span class="item">
     <svg width="34" height="14"><path d="M3 7H31" stroke="#FF00FF" stroke-width="2.5"/>
       <path d="M3 7H31" stroke="#fff" stroke-width="1" stroke-dasharray="4 4"/></svg>
-    Coupe ajoutée <b id="n-ajoutee">0</b>
+    [[Added cut]] <b id="n-ajoutee">0</b>
   </span>
   <span class="item">
     <svg width="34" height="14"><path d="M3 7H31" stroke="#7A8190" stroke-width="1.2" stroke-dasharray="1 3"/></svg>
-    Non modifiable <b id="n-bloque">0</b>
+    [[Not editable]] <b id="n-bloque">0</b>
   </span>
-  <label class="item"><input type="checkbox" id="estomper"> Estomper le dessin</label>
+  <label class="item"><input type="checkbox" id="estomper"> [[Fade artwork]]</label>
 </div>
 <div id="alerte"></div>
 <div id="notification" role="status" aria-live="polite"></div>
-<div id="voile-depot">Déposez le fichier EPS pour l'ouvrir</div>
+<div id="voile-depot">[[Drop the EPS file to open it]]</div>
 <div id="zone"><div id="papier"><svg id="dessin" xmlns="http://www.w3.org/2000/svg"></svg></div></div>
 <footer>
   <span id="info"></span>
@@ -472,6 +495,7 @@ if (!window.fetch || !window.Promise || !("noModule" in document.createElement("
 <script id="donnees" type="application/json">__DONNEES__</script>
 <script>
 "use strict";
+__I18N_JS__
 const D = JSON.parse(document.getElementById("donnees").textContent);
 const NS = "http://www.w3.org/2000/svg";
 const MAGENTA = "#FF00FF";
@@ -488,8 +512,8 @@ $("fichier").textContent = "— " + D.fichier;
 $("nom-ton").textContent = D.ton;
 if (D.erreur) {
   $("alerte").style.display = "block";
-  $("alerte").textContent = "Lecture incomplète du fichier (" + D.erreur +
-    "). Les tracés affichés restent utilisables.";
+  $("alerte").textContent = t("The file could only be partly read ({error}). The paths shown can still be used.",
+                               {error: D.erreur});
 }
 
 const [x0, y0, x1, y1] = D.bbox;
@@ -563,9 +587,9 @@ function dessinerEtat(i) {
 }
 
 function basculer(i) {
-  const t = D.traces[i];
-  if (t.m) { message("Ce tracé est déjà en magenta pur dans le fichier.", ""); return; }
-  if (!t.e) { message("Ce tracé ne peut pas être modifié seul : il est peint par une instruction partagée avec d'autres.", "erreur"); return; }
+  const tr = D.traces[i];
+  if (tr.m) { message(t("This path is already pure magenta in the file."), ""); return; }
+  if (!tr.e) { message(t("This path cannot be changed on its own: it is painted by an instruction shared with other paths."), "erreur"); return; }
   if (selection.has(i)) selection.delete(i); else selection.add(i);
   dessinerEtat(i);
   majInfo();
@@ -576,23 +600,23 @@ let survolActuel = null;
 function survoler(i) {
   if (survolActuel) { survolActuel.remove(); survolActuel = null; }
   if (i === null) { majInfo(); return; }
-  const t = D.traces[i];
-  survolActuel = el("path", {d: t.d, fill: "none", stroke: "#0091FF", "stroke-width": 2,
+  const tr = D.traces[i];
+  survolActuel = el("path", {d: tr.d, fill: "none", stroke: "#0091FF", "stroke-width": 2,
                              "stroke-dasharray": "5 3", "vector-effect": "non-scaling-stroke"}, gSurvol);
-  const type = estTrait(i) ? `trait de ${String(t.w).replace(".", ",")} pt` : "aplat";
-  const couleur = t.s ? `ton direct ${t.s}` : t.c;
-  const etat = t.m ? "coupe d'origine (déjà dans le fichier)" : !t.e ? "non modifiable"
-             : selection.has(i) ? "coupe ajoutée — cliquer pour annuler"
-             : estTrait(i) ? "cliquer pour le passer en magenta" : "cliquer pour lui ajouter un contour magenta";
-  $("info").textContent = `Tracé n°${i + 1} — ${type} — ${couleur} — ${etat}`;
+  const type = estTrait(i) ? t("{width} pt stroke", {width: tr.w.toLocaleString(LANGUE)}) : t("fill");
+  const couleur = tr.s ? t("spot color {name}", {name: tr.s}) : tr.c;
+  const etat = tr.m ? t("original cut (already in the file)") : !tr.e ? t("not editable")
+             : selection.has(i) ? t("added cut — click to undo")
+             : estTrait(i) ? t("click to turn it magenta") : t("click to add a magenta outline");
+  $("info").textContent = t("Path #{n} — {type} — {color} — {state}", {n: i + 1, type, color: couleur, state: etat});
 }
 
 function majInfo() {
   $("n-origine").textContent = nOrigine;
   $("n-ajoutee").textContent = selection.size - nOrigine;
   $("n-bloque").textContent = nBloques;
-  $("info").textContent = `${D.traces.length} tracés. ` +
-    "Cliquez sur un contour pour le passer en magenta pur ; recliquez pour annuler.";
+  $("info").textContent = t("{n} paths. Click an outline to turn it pure magenta; click again to undo.",
+                            {n: D.traces.length});
 }
 
 $("estomper").addEventListener("change", e => {
@@ -640,6 +664,31 @@ document.querySelectorAll("input[name=mode]").forEach(r => r.addEventListener("c
   if (!nomModifie) $("nom").value = D.noms[modeCourant()];
 }));
 
+// Changement de langue : la page est rechargée ; la sélection en cours est gardée le temps du rechargement.
+const CLE_ETAT = "eps-cutcontour-etat";
+window.avantChangementLangue = () => {
+  try {
+    sessionStorage.setItem(CLE_ETAT, JSON.stringify({
+      fichier: D.fichier, nb: D.traces.length, selection: [...selection], mode: modeCourant(),
+      nom: $("nom").value, nomModifie, estomper: $("estomper").checked}));
+  } catch (e) { /* stockage indisponible : la sélection sera perdue */ }
+};
+try {
+  const etat = JSON.parse(sessionStorage.getItem(CLE_ETAT) || "null");
+  sessionStorage.removeItem(CLE_ETAT);
+  if (etat && etat.fichier === D.fichier && etat.nb === D.traces.length) {
+    for (const i of etat.selection) if (D.traces[i] && D.traces[i].e) selection.add(i);
+    if (etat.mode === "cutcontour" || etat.mode === "magenta") {
+      document.querySelector(`input[name=mode][value=${etat.mode}]`).checked = true;
+    }
+    $("nom").value = etat.nom;
+    nomModifie = etat.nomModifie;
+    if (etat.estomper) { $("estomper").checked = true; $("estomper").dispatchEvent(new Event("change")); }
+    for (let i = 0; i < D.traces.length; i++) dessinerEtat(i);
+    majInfo();
+  }
+} catch (e) { /* état illisible : on repart de zéro */ }
+
 function message(texte, classe) {
   const m = $("message");
   m.textContent = texte;
@@ -671,7 +720,7 @@ function telecharger(nom, base64) {
 
 const JETON = __JETON__;
 function signalerDepot(texte, erreur) {
-  if (erreur) notifier("Fichier non ouvert", texte, "erreur"); else message(texte, "");
+  if (erreur) notifier(t("File not opened"), texte, "erreur"); else message(texte, "");
 }
 $("ouvrir").onclick = () => $("choisir").click();
 __DEPOT_JS__
@@ -684,31 +733,57 @@ async function appeler(chemin, corps) {
 }
 
 $("enregistrer").onclick = async () => {
-  message("Enregistrement…", "");
+  message(t("Saving…"), "");
   try {
     const res = await appeler("/api/enregistrer", {selection: [...selection], mode: modeCourant(), nom: $("nom").value.trim()});
     message(res.message, res.ok ? "ok" : "erreur");
     if (res.ok && res.donnees) {
       telecharger(res.nom, res.donnees);
-      notifier("✓ Fichier bien enregistré", `${res.nom} — dans le dossier de téléchargement du navigateur`, "ok");
+      notifier(t("✓ File saved"), t("{name} — in your browser's download folder", {name: res.nom}), "ok");
     } else if (res.ok) {
-      notifier("✓ Fichier bien enregistré", res.chemin, "ok");
+      notifier(t("✓ File saved"), res.chemin, "ok");
     } else {
-      notifier("Fichier non enregistré", res.message, "erreur");
+      notifier(t("File not saved"), res.message, "erreur");
     }
   } catch (e) {
-    message("Le serveur ne répond pas (" + e.message + ").", "erreur");
-    notifier("Fichier non enregistré", "Le serveur ne répond pas (" + e.message + ").", "erreur");
+    const texte = t("The server is not responding ({reason}).", {reason: e.message});
+    message(texte, "erreur");
+    notifier(t("File not saved"), texte, "erreur");
   }
 };
 
 $("quitter").onclick = async () => {
   try { await appeler("/api/quitter"); } catch (e) { /* serveur déjà arrêté */ }
-  document.body.innerHTML = "<p style='padding:24px'>Éditeur arrêté. Vous pouvez fermer cet onglet.</p>";
+  afficherArret();
 };
 </script>
 </body>
 </html>
+"""
+
+
+# Traduction côté navigateur, commune aux deux pages : t("English text {name}", {name: …})
+# renvoie le texte dans la langue de la page (catalogue injecté par fill_page).
+I18N_JS = r"""
+const LANGUE = "__LANG__";
+const T = __TRADUCTIONS__;
+function t(texte, valeurs) {
+  let r = Object.prototype.hasOwnProperty.call(T, texte) ? T[texte] : texte;
+  if (valeurs) r = r.replace(/\{(\w+)\}/g, (m, k) => (k in valeurs ? String(valeurs[k]) : m));
+  return r;
+}
+function afficherArret() {
+  const p = document.createElement("p");
+  p.style.padding = "24px";
+  p.textContent = t("Editor stopped. You can close this tab.");
+  document.body.replaceChildren(p);
+}
+document.getElementById("langue").addEventListener("change", e => {
+  if (window.avantChangementLangue) window.avantChangementLangue();
+  const url = new URL(location.href);
+  url.searchParams.set("langue", e.target.value);
+  location.href = url.toString();
+});
 """
 
 
@@ -718,17 +793,17 @@ DEPOT_JS = r"""
 async function ouvrirFichier(fichier) {
   if (!fichier) return;
   if (!/\.(eps|epsf|ps)$/i.test(fichier.name)) {
-    signalerDepot(`« ${fichier.name} » n'est pas un fichier EPS (extension .eps attendue).`, true);
+    signalerDepot(t("“{name}” is not an EPS file (.eps extension expected).", {name: fichier.name}), true);
     return;
   }
-  signalerDepot(`Lecture de « ${fichier.name} »…`, false);
+  signalerDepot(t("Reading “{name}”…", {name: fichier.name}), false);
   try {
     const r = await fetch("/api/ouvrir", {method: "POST", body: fichier,
       headers: {"X-Jeton": JETON, "X-Nom": encodeURIComponent(fichier.name)}});
     const res = await r.json();
     if (res.ok) location.reload(); else signalerDepot(res.message, true);
   } catch (e) {
-    signalerDepot("Le serveur ne répond pas (" + e.message + ").", true);
+    signalerDepot(t("The server is not responding ({reason}).", {reason: e.message}), true);
   }
 }
 let profondeurDepot = 0;
@@ -745,7 +820,7 @@ window.addEventListener("drop", e => {
   profondeurDepot = 0;
   document.body.classList.remove("depot-survol");
   const fichiers = e.dataTransfer && e.dataTransfer.files;
-  if (fichiers && fichiers.length > 1) signalerDepot("Un seul fichier à la fois : seul le premier est ouvert.", false);
+  if (fichiers && fichiers.length > 1) signalerDepot(t("One file at a time: only the first one is opened."), false);
   ouvrirFichier(fichiers && fichiers[0]);
 });
 const champFichier = document.getElementById("choisir");
@@ -754,11 +829,11 @@ if (champFichier) champFichier.addEventListener("change", () => ouvrirFichier(ch
 
 
 PAGE_DEPOT = r"""<!doctype html>
-<html lang="fr">
+<html lang="__LANG__">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Éditeur CutContour</title>
+<title>[[CutContour Editor]]</title>
 <style>
 __STYLE__
 </style>
@@ -768,26 +843,27 @@ __STYLE__
 /* Écrit en ES3 : doit s'exécuter même dans un navigateur trop ancien pour l'éditeur. */
 if (!window.fetch || !window.Promise || !("noModule" in document.createElement("script"))) {
   document.write('<div style="padding:16px;margin:16px;border:2px solid #b3261e;background:#fff;color:#b3261e;font:16px sans-serif">' +
-    "Ce navigateur est trop ancien pour l'éditeur (Internet Explorer n'est pas pris en charge).<br>" +
-    "Ouvrez cette adresse dans Chrome, Firefox ou Edge :<br><b>" + location.href + "</b></div>");
+    __ANCIEN__ + location.href + "</b></div>");
 }
 </script>
 <header>
-  <h1>Éditeur CutContour</h1>
+  <h1>[[CutContour Editor]]</h1>
   <span class="espace"></span>
-  <button id="quitter">Quitter</button>
+  <select id="langue" aria-label="[[Language]]">__LANGUES__</select>
+  <button id="quitter">[[Quit]]</button>
 </header>
 <main id="depot">
   <div id="cadre-depot">
-    <h2>Déposez un fichier EPS ici</h2>
-    <p>Glissez-le depuis l'explorateur de fichiers, ou choisissez-le.</p>
-    <button class="principal" id="parcourir">Choisir un fichier…</button>
+    <h2>[[Drop an EPS file here]]</h2>
+    <p>[[Drag it from your file manager, or choose it.]]</p>
+    <button class="principal" id="parcourir">[[Choose a file…]]</button>
     <input type="file" id="choisir" accept=".eps,.epsf,.ps" hidden>
     <div id="etat-depot" role="status" aria-live="polite"></div>
   </div>
 </main>
 <script>
 "use strict";
+__I18N_JS__
 const JETON = __JETON__;
 function signalerDepot(texte, erreur) {
   const etat = document.getElementById("etat-depot");
@@ -799,7 +875,7 @@ document.getElementById("quitter").onclick = async () => {
   try {
     await fetch("/api/quitter", {method: "POST", headers: {"X-Jeton": JETON}, body: "{}"});
   } catch (e) { /* serveur déjà arrêté */ }
-  document.body.innerHTML = "<p style='padding:24px'>Éditeur arrêté. Vous pouvez fermer cet onglet.</p>";
+  afficherArret();
 };
 __DEPOT_JS__
 </script>

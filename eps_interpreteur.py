@@ -17,6 +17,8 @@ import colorsys
 import math
 import re
 
+from i18n import tr
+
 WHITESPACE = "\0\t\n\f\r "
 DELIMITERS = "()<>[]{}/%"
 
@@ -174,7 +176,7 @@ def mat_inv(m):
     a, b, c, d, e, f = m
     det = a * d - b * c
     if det == 0:
-        raise PSError("matrice non inversible")
+        raise PSError(tr("non-invertible matrix"))
     return (d / det, -b / det, -c / det, a / det, (c * f - d * e) / det, (b * e - a * f) / det)
 
 
@@ -243,7 +245,7 @@ class Scanner:
         elif text.startswith("<~", i):
             end = text.find("~>", i + 2)
             if end == -1:
-                raise PSError("chaîne ASCII85 non terminée")
+                raise PSError(tr("unterminated ASCII85 string"))
             try:
                 data = base64.a85decode(text[i + 2:end].encode("latin-1"),
                                         ignorechars=b" \t\n\r\v\f\0")
@@ -255,12 +257,12 @@ class Scanner:
         elif ch == "<":
             end = text.find(">", i + 1)
             if end == -1:
-                raise PSError("chaîne hexadécimale non terminée")
+                raise PSError(tr("unterminated hexadecimal string"))
             digits = re.sub(r"\s", "", text[i + 1:end])
             try:
                 data = bytes.fromhex(digits + "0" * (len(digits) % 2))
             except ValueError:
-                raise PSError("chaîne hexadécimale invalide") from None
+                raise PSError(tr("invalid hexadecimal string")) from None
             obj, i = PSString(data), end + 1
         elif ch in "[]":
             obj, i = Name(ch), i + 1
@@ -270,7 +272,7 @@ class Scanner:
             while True:
                 tok = self.next()
                 if tok is None:
-                    raise PSError("« { » sans « } »")
+                    raise PSError(tr("“{” without “}”"))
                 if tok[0] is END:
                     break
                 items.append(tok[0])
@@ -278,7 +280,7 @@ class Scanner:
         elif ch == "}":
             obj, i = END, i + 1
         elif ch in ")>":
-            raise PSError(f"caractère inattendu « {ch} »")
+            raise PSError(tr("unexpected character “{char}”", char=ch))
         else:
             j = i + 1 if ch == "/" else i
             immediate = ch == "/" and j < n and text[j] == "/"
@@ -347,7 +349,7 @@ class Scanner:
             else:
                 out += c.encode("latin-1", "replace")
             i += 1
-        raise PSError("chaîne non terminée")
+        raise PSError(tr("unterminated string"))
 
 
 # --- État graphique et tracés relevés -----------------------------------------
@@ -460,7 +462,7 @@ def _copy(ps):
     if is_num(top):
         n = int(top)
         if n < 0 or n > len(ps.stack):
-            raise PSError("copy : pile trop courte")
+            raise PSError(tr("{op}: stack too short", op="copy"))
         if n:
             ps.stack.extend(ps.stack[-n:])
     elif isinstance(top, PSArray):
@@ -475,14 +477,14 @@ def _copy(ps):
         top.data[:len(src.data)] = src.data
         ps.push(PSString(top.data[:len(src.data)]))
     else:
-        raise PSError("copy : opérande invalide")
+        raise PSError(tr("{op}: invalid operand", op="copy"))
 
 
 @operator("index")
 def _index(ps):
     n = ps.pop_int()
     if n < 0 or n >= len(ps.stack):
-        raise PSError("index : pile trop courte")
+        raise PSError(tr("{op}: stack too short", op="index"))
     ps.push(ps.stack[-1 - n])
 
 
@@ -490,7 +492,7 @@ def _index(ps):
 def _roll(ps):
     j, n = ps.pop_int(), ps.pop_int()
     if n < 0 or n > len(ps.stack):
-        raise PSError("roll : pile trop courte")
+        raise PSError(tr("{op}: stack too short", op="roll"))
     if n:
         seg = ps.stack[-n:]
         j %= n
@@ -523,7 +525,7 @@ def _counttomark(ps):
         if v is MARK:
             ps.push(i)
             return
-    raise PSError("counttomark : pas de marque")
+    raise PSError(tr("{op}: no mark", op="counttomark"))
 
 
 @operator("]")
@@ -535,7 +537,7 @@ def _array_end(ps):
 def _dict_end(ps):
     items = ps.to_mark()
     if len(items) % 2:
-        raise PSError(">> : nombre impair d'éléments")
+        raise PSError(tr("{op}: odd number of elements", op=">>"))
     ps.push({key(items[i]): items[i + 1] for i in range(0, len(items), 2)})
 
 
@@ -563,7 +565,7 @@ OPERATORS["mul"] = binary(lambda a, b: a * b)
 def _div(ps):
     b, a = ps.pop_num(), ps.pop_num()
     if b == 0:
-        raise PSError("division par zéro")
+        raise PSError(tr("division by zero"))
     ps.push(a / b)
 
 
@@ -571,7 +573,7 @@ def _div(ps):
 def _idiv(ps):
     b, a = ps.pop_int(), ps.pop_int()
     if b == 0:
-        raise PSError("division par zéro")
+        raise PSError(tr("division by zero"))
     q = abs(a) // abs(b) * (1 if (a >= 0) == (b >= 0) else -1)
     ps.push(q if ps.current_op == "idiv" else a - b * q)
 
@@ -615,7 +617,7 @@ def _cvi(ps):
     if isinstance(v, PSString):
         v = parse_number(v.text().strip())
     if not is_num(v):
-        raise PSError("cvi : nombre attendu")
+        raise PSError(tr("{op}: number expected", op="cvi"))
     ps.push(int(math.trunc(v)))
 
 
@@ -625,7 +627,7 @@ def _cvr(ps):
     if isinstance(v, PSString):
         v = parse_number(v.text().strip())
     if not is_num(v):
-        raise PSError("cvr : nombre attendu")
+        raise PSError(tr("{op}: number expected", op="cvr"))
     ps.push(float(v))
 
 
@@ -651,7 +653,7 @@ def compare(fn):
         if isinstance(a, PSString) and isinstance(b, PSString):
             a, b = bytes(a.data), bytes(b.data)
         elif not (is_num(a) and is_num(b)):
-            raise PSError("comparaison : nombres ou chaînes attendus")
+            raise PSError(tr("comparison: numbers or strings expected"))
         ps.push(fn(a, b))
     return op
 
@@ -670,7 +672,7 @@ def logical(fn_bool, fn_int):
         elif isinstance(a, int) and isinstance(b, int):
             ps.push(fn_int(a, b))
         else:
-            raise PSError("opération logique : booléens ou entiers attendus")
+            raise PSError(tr("logical operation: booleans or integers expected"))
     return op
 
 
@@ -755,7 +757,7 @@ def _forall(ps):
     elif isinstance(obj, PSString):
         items = [(b,) for b in bytes(obj.data)]
     else:
-        raise PSError("forall : tableau, dictionnaire ou chaîne attendu")
+        raise PSError(tr("{op}: array, dictionary or string expected", op="forall"))
     try:
         for values in items:
             for v in values:
@@ -879,7 +881,7 @@ def _astore(ps):
     arr = ps.pop()
     n = len(arr)
     if n > len(ps.stack):
-        raise PSError("astore : pile trop courte")
+        raise PSError(tr("{op}: stack too short", op="astore"))
     arr[:] = ps.stack[len(ps.stack) - n:]
     del ps.stack[len(ps.stack) - n:]
     ps.push(arr)
@@ -908,7 +910,7 @@ def _get(ps):
     idx, obj = ps.pop(), ps.pop()
     if isinstance(obj, dict):
         if key(idx) not in obj:
-            raise PSError(f"get : clé inconnue {key(idx)}")
+            raise PSError(tr("{op}: unknown key {key}", op="get", key=key(idx)))
         ps.push(obj[key(idx)])
     elif isinstance(obj, PSString):
         ps.push(obj.data[int(idx)])
@@ -983,14 +985,14 @@ def _dict(ps):
 def _begin(ps):
     d = ps.pop()
     if not isinstance(d, dict):
-        raise PSError("begin : dictionnaire attendu")
+        raise PSError(tr("{op}: dictionary expected", op="begin"))
     ps.dstack.append(d)
 
 
 @operator("end")
 def _end(ps):
     if len(ps.dstack) <= 3:
-        raise PSError("end : pile de dictionnaires vide")
+        raise PSError(tr("{op}: dictionary stack is empty", op="end"))
     ps.dstack.pop()
 
 
@@ -1391,7 +1393,7 @@ def _currentpoint(ps):
 def _pathbbox(ps):
     pts = [pt for seg in ps.gs.path for pt in seg[1:]]
     if not pts:
-        raise PSError("pathbbox : pas de tracé courant")
+        raise PSError(tr("{op}: no current path", op="pathbbox"))
     inv = mat_inv(ps.gs.ctm)
     user = [apply(inv, *pt) for pt in pts]
     xs, ys = [p[0] for p in user], [p[1] for p in user]
@@ -1516,7 +1518,7 @@ def _findresource(ps):
     elif category == "Encoding":
         ps.push(PSArray([Name(".notdef", False)] * 256))
     else:
-        raise PSError(f"ressource introuvable : {k} ({category})")
+        raise PSError(tr("resource not found: {name} ({category})", name=k, category=category))
 
 
 @operator("resourcestatus")
@@ -1582,7 +1584,7 @@ def _readstring(ps):
     buf, f = ps.pop(), ps.pop()
     sc, n = ps.scanner, len(buf.data)
     if not isinstance(f, PSFile) or f.filters:
-        raise PSError(f"{ps.current_op} : seule la lecture directe de currentfile est gérée")
+        raise PSError(tr("{op}: only direct reading of currentfile is supported", op=ps.current_op))
     if ps.current_op == "readhexstring":
         digits, i = [], sc.pos
         while len(digits) < 2 * n and i < len(sc.text) and sc.text[i] != ">":
@@ -1611,7 +1613,7 @@ def _eexec(ps):
     sc = ps.scanner
     i = sc.text.find("0" * 64, sc.pos)
     if i == -1:
-        raise PSError("eexec : fin de la partie chiffrée introuvable")
+        raise PSError(tr("{op}: end of encrypted section not found", op="eexec"))
     while i < len(sc.text) and sc.text[i] in "0\r\n\t ":
         i += 1
     sc.pos = i
@@ -1623,7 +1625,7 @@ def _eexec(ps):
 
 @operator("file", "run", "deletefile", "renamefile")
 def _file(ps):
-    raise PSError(f"{ps.current_op} : accès aux fichiers non géré")
+    raise PSError(tr("{op}: file access is not supported", op=ps.current_op))
 
 
 # --- Interpréteur ---------------------------------------------------------------
@@ -1654,13 +1656,13 @@ class Interpreter:
 
     def pop(self):
         if not self.stack:
-            raise PSError(f"{self.current_op} : pile vide")
+            raise PSError(tr("{op}: stack is empty", op=self.current_op))
         return self.stack.pop()
 
     def pop_num(self):
         v = self.pop()
         if not is_num(v):
-            raise PSError(f"{self.current_op} : nombre attendu, trouvé {type_name(v)}")
+            raise PSError(tr("{op}: number expected, found {type}", op=self.current_op, type=type_name(v)))
         return v
 
     def pop_nums(self, n):
@@ -1672,19 +1674,19 @@ class Interpreter:
     def pop_bool(self):
         v = self.pop()
         if not isinstance(v, bool):
-            raise PSError(f"{self.current_op} : booléen attendu, trouvé {type_name(v)}")
+            raise PSError(tr("{op}: boolean expected, found {type}", op=self.current_op, type=type_name(v)))
         return v
 
     def pop_proc(self):
         v = self.pop()
         if not isinstance(v, (PSArray, Op, Name)):
-            raise PSError(f"{self.current_op} : procédure attendue, trouvé {type_name(v)}")
+            raise PSError(tr("{op}: procedure expected, found {type}", op=self.current_op, type=type_name(v)))
         return v
 
     def pop_matrix(self):
         v = self.pop()
         if not isinstance(v, PSArray) or len(v) != 6 or not all(is_num(x) for x in v):
-            raise PSError(f"{self.current_op} : matrice attendue")
+            raise PSError(tr("{op}: matrix expected", op=self.current_op))
         return tuple(float(x) for x in v)
 
     def pop_rects(self):
@@ -1701,20 +1703,20 @@ class Interpreter:
                 items = self.stack[i + 1:]
                 del self.stack[i:]
                 return items
-        raise PSError(f"{self.current_op} : pas de marque")
+        raise PSError(tr("{op}: no mark", op=self.current_op))
 
     # Exécution
     def tick(self):
         self.steps += 1
         if self.steps > self.max_steps:
-            raise PSError("exécution trop longue (boucle infinie ?)")
+            raise PSError(tr("execution took too long (infinite loop?)"))
         return True
 
     def lookup(self, name):
         for d in reversed(self.dstack):
             if name in d:
                 return d[name]
-        raise PSError(f"nom inconnu : {name}")
+        raise PSError(tr("unknown name: {name}", name=name))
 
     def _immediate(self, name):
         return self.lookup(name)
@@ -1736,7 +1738,7 @@ class Interpreter:
                 else:
                     self.push(item)
         elif isinstance(obj, PSString) and obj.exe:
-            raise PSError("exécution d'une chaîne non gérée")
+            raise PSError(tr("executing a string is not supported"))
         else:
             self.push(obj)
 
@@ -1749,7 +1751,7 @@ class Interpreter:
                     break
                 obj, start, end = tok
                 if obj is END:
-                    raise PSError("« } » sans « { »")
+                    raise PSError(tr("“}” without “{”"))
                 self.span = (start, end)
                 if isinstance(obj, Name) and obj.exe:
                     self.execute(obj)
@@ -1758,20 +1760,20 @@ class Interpreter:
         except _Quit:
             pass
         except (_Exit, _Stop):
-            raise PSError(f"ligne {self.scanner.line()} : exit/stop hors d'une boucle") from None
+            raise PSError(tr("line {line}: exit/stop outside a loop", line=self.scanner.line())) from None
         except PSError as e:
-            raise PSError(f"ligne {self.scanner.line()} : {e}") from None
+            raise PSError(tr("line {line}: {error}", line=self.scanner.line(), error=e)) from None
         except RecursionError:
-            raise PSError(f"ligne {self.scanner.line()} : récursion trop profonde") from None
+            raise PSError(tr("line {line}: recursion too deep", line=self.scanner.line())) from None
         except (IndexError, KeyError, TypeError, ValueError, AttributeError,
                 ZeroDivisionError, OverflowError) as e:
-            raise PSError(f"ligne {self.scanner.line()} : opérande invalide pour "
-                          f"{self.current_op or '?'} ({e})") from None
+            raise PSError(tr("line {line}: invalid operand for {op} ({error})",
+                             line=self.scanner.line(), op=self.current_op or "?", error=e)) from None
 
     # Tracés et couleurs
     def current_point(self):
         if self.gs.point is None:
-            raise PSError(f"{self.current_op} : pas de point courant")
+            raise PSError(tr("{op}: no current point", op=self.current_op))
         return self.gs.point
 
     def move_to(self, p):
@@ -1847,16 +1849,16 @@ class Interpreter:
                 self._skip_whitespace_char()
                 self.scanner.pos += nbytes
             else:
-                raise PSError("données d'image lues par une procédure non gérée")
+                raise PSError(tr("image data read by a procedure is not supported"))
 
     def skip_filtered(self, f):
         sc, first = self.scanner, f.filters[0]
         terminator = {"ASCII85Decode": "~>", "A85": "~>", "ASCIIHexDecode": ">", "AHx": ">"}.get(first)
         if terminator is None:
-            raise PSError(f"données d'image avec le filtre {first} non gérées")
+            raise PSError(tr("image data with the {filter} filter is not supported", filter=first))
         end = sc.text.find(terminator, sc.pos)
         if end == -1:
-            raise PSError("fin des données d'image introuvable")
+            raise PSError(tr("end of image data not found"))
         sc.pos = end + len(terminator)
         f.state["consumed"] = True
 

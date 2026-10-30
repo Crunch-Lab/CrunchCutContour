@@ -119,14 +119,18 @@ Depuis les sources, remplacez `EPS_CutContour` par `python3 eps_cutcontour.py`.
 | *(sans fichier)* | Éditeur : attend qu'on dépose un fichier dans la page |
 | `fichier.eps` | Éditeur ouvert sur ce fichier |
 | `--auto` | Conversion directe, sans éditeur : tout le magenta pur devient CutContour |
-| `-o`, `--sortie FICHIER` | Avec `--auto` : fichier produit (défaut : `<fichier>_CutContour.eps`) |
+| `-o`, `--output FICHIER` | Avec `--auto` : fichier produit (défaut : `<fichier>_CutContour.eps`) |
 | `-f`, `--force` | Avec `--auto` : écraser le fichier produit s'il existe |
-| `--nom NOM` | Nom du ton direct (défaut : `CutContour`) |
+| `--name NOM` | Nom du ton direct (défaut : `CutContour`) |
 | `--tolerance T` | Écart toléré sur chaque composante de couleur, de 0 à 1 (défaut : 0.002) |
-| `--op-rvb NOM`, `--op-cmjn NOM` | Avec `--auto` : opérateur de couleur supplémentaire à reconnaître (répétable) |
-| `--pas-de-navigateur` | Éditeur : afficher l'adresse sans ouvrir le navigateur |
+| `--op-rgb NOM`, `--op-cmyk NOM` | Avec `--auto` : opérateur de couleur supplémentaire à reconnaître (répétable) |
+| `--language en\|fr` | Langue de l'interface (défaut : celle du système) |
+| `--no-browser` | Éditeur : afficher l'adresse sans ouvrir le navigateur |
 | `--port PORT` | Éditeur : port local à utiliser (défaut : aléatoire) |
 | `--version` | Afficher la version |
+
+Les noms français des options de la version 1.0.0 restent acceptés : `--sortie`, `--nom`,
+`--op-rvb`, `--op-cmjn`, `--langue`, `--pas-de-navigateur`.
 
 Exemples :
 
@@ -137,6 +141,19 @@ EPS_CutContour --auto stickers.eps
 ```bash
 EPS_CutContour --auto stickers.eps -o pret_a_decouper.eps --force
 ```
+
+## Langues
+
+L'interface (ligne de commande, aide, messages, pages de l'éditeur) existe en **anglais** et en
+**français**. La langue est choisie dans cet ordre :
+
+1. l'option `--language` (`--language fr`, `--language en`) ;
+2. la langue du système (variables `LANGUAGE`, `LC_ALL`, `LC_MESSAGES`, `LANG`, langue de
+   l'interface Windows, langues préférées de macOS) ;
+3. l'anglais, si la langue du système n'est pas disponible.
+
+Dans l'éditeur, le menu de langue en haut à droite change la langue de la page et des
+messages ; la sélection en cours est conservée.
 
 En mode `--auto`, si le fichier ne contient aucun magenta pur, rien n'est écrit et le
 programme se termine avec le code 1.
@@ -188,6 +205,27 @@ aléatoire, et chaque requête doit porter un jeton secret tiré au lancement. I
 accessible depuis le réseau ni depuis une autre page web. Sous WSL, la page s'ouvre dans le
 navigateur de Windows.
 
+### Tests
+
+```bash
+python3 -m unittest discover tests
+```
+
+### Ajouter une langue
+
+Les textes sont écrits en anglais dans le code : `tr("…")` en Python, `t("…")` en
+JavaScript et `[[…]]` dans le HTML des pages ([eps_editeur.py](eps_editeur.py)). Le texte
+anglais sert de clé de traduction.
+
+1. Copier [catalogue_fr.py](catalogue_fr.py) en `catalogue_xx.py` (`xx` : code ISO 639-1 de
+   la langue, par exemple `de`) et traduire chaque valeur. Les `{noms}` entre accolades sont
+   remplacés par des valeurs : les recopier tels quels.
+2. Inscrire le module dans `LANGUES`, dans [i18n.py](i18n.py).
+3. Lancer les tests : ils signalent tout texte non traduit, toute traduction qui ne sert
+   plus et toute variable `{…}` oubliée.
+
+Un nouveau texte dans le code doit être ajouté à chaque catalogue ; les tests le rappellent.
+
 ## Construire les exécutables
 
 Les exécutables sont produits avec [PyInstaller](https://pyinstaller.org) dans le dossier
@@ -235,6 +273,9 @@ les fichiers sont alors dans les « artifacts » de l'exécution.
 | [eps_cutcontour.py](eps_cutcontour.py) | Point d'entrée et options ; conversion du magenta pur en CutContour (`--auto`), en-tête DSC, EPS « DOS » |
 | [eps_editeur.py](eps_editeur.py) | Éditeur : serveur HTTP local, pages web (dépôt et édition), modification des contours choisis |
 | [eps_interpreteur.py](eps_interpreteur.py) | Interpréteur PostScript simplifié : exécute le fichier et relève chaque tracé, sa couleur et l'instruction source qui l'a peint |
+| [i18n.py](i18n.py) | Traduction : choix et détection de la langue, fonction `tr()`, traduction de l'aide d'argparse |
+| [catalogue_fr.py](catalogue_fr.py), [catalogue_en.py](catalogue_en.py) | Textes de chaque langue |
+| [tests/](tests) | Tests (traductions complètes, détection de la langue) |
 | [construire_exe.bat](construire_exe.bat) | Construction des exécutables Windows |
 | [construire.sh](construire.sh) | Construction des exécutables macOS et Linux |
 | [NOTES_DE_VERSION.md](NOTES_DE_VERSION.md) | Texte de la release GitHub |

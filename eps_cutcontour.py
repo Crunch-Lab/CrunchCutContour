@@ -16,6 +16,7 @@ Usage :
   python3 eps_cutcontour.py [entree.eps]                     (éditeur ; sans fichier,
                                                               déposez-le dans la page)
   python3 eps_cutcontour.py --auto entree.eps [-o sortie.eps]
+  Option --language en|fr (ou --langue) : langue de l'interface (voir i18n.py).
 """
 
 import argparse
@@ -23,6 +24,9 @@ import os
 import re
 import struct
 import sys
+
+import i18n
+from i18n import tr
 
 VERSION = "1.0.0"
 
@@ -219,36 +223,40 @@ def join_dos_eps(ps, wmf, tiff):
 
 
 def main():
+    i18n.initialiser(sys.argv[1:])
     parser = argparse.ArgumentParser(
-        description="Transforme les tracés magenta pur d'un EPS en ton direct CutContour.")
-    parser.add_argument("--version", action="version", version=f"EPS CutContour {VERSION}")
-    parser.add_argument("entree", nargs="?",
-                        help="fichier EPS source (sans fichier : l'éditeur attend un dépôt dans le navigateur)")
+        description=tr("Turns the pure magenta paths of an EPS file into the CutContour spot color."))
+    parser.add_argument("--version", action="version", version=f"EPS CutContour {VERSION}",
+                        help=tr("show program's version number and exit"))
+    parser.add_argument("entree", nargs="?", metavar=tr("FILE.eps"),
+                        help=tr("source EPS file (without a file, the editor waits for one to be dropped in the browser)"))
+    parser.add_argument("--language", "--langue", dest="langue", choices=sorted(i18n.LANGUES),
+                        help=tr("interface language (default: the system language)"))
     parser.add_argument("--auto", action="store_true",
-                        help="convertir directement, sans ouvrir l'éditeur")
-    parser.add_argument("--pas-de-navigateur", action="store_true",
-                        help="éditeur : afficher l'adresse sans ouvrir le navigateur")
+                        help=tr("convert directly, without opening the editor"))
+    parser.add_argument("--no-browser", "--pas-de-navigateur", dest="pas_de_navigateur", action="store_true",
+                        help=tr("editor: print the address without opening the browser"))
     parser.add_argument("--port", type=int, default=0,
-                        help="éditeur : port local à utiliser (défaut : aléatoire)")
-    parser.add_argument("-o", "--sortie",
-                        help="--auto : fichier EPS produit (défaut : <entree>_CutContour.eps)")
+                        help=tr("editor: local port to use (default: random)"))
+    parser.add_argument("-o", "--output", "--sortie", dest="sortie", metavar=tr("OUTPUT"),
+                        help=tr("--auto: output EPS file (default: <input>_CutContour.eps)"))
     parser.add_argument("-f", "--force", action="store_true",
-                        help="écraser le fichier de sortie s'il existe")
-    parser.add_argument("--nom", default="CutContour",
-                        help="nom du ton direct (défaut : CutContour)")
-    parser.add_argument("--tolerance", type=float, default=0.002,
-                        help="écart toléré sur chaque composante 0..1 (défaut : 0.002)")
-    parser.add_argument("--op-rvb", action="append", default=[], metavar="NOM",
-                        help="opérateur RVB supplémentaire à reconnaître (répétable)")
-    parser.add_argument("--op-cmjn", action="append", default=[], metavar="NOM",
-                        help="opérateur CMJN supplémentaire à reconnaître (répétable)")
+                        help=tr("overwrite the output file if it exists"))
+    parser.add_argument("--name", "--nom", dest="nom", default="CutContour", metavar=tr("NAME"),
+                        help=tr("spot color name (default: CutContour)"))
+    parser.add_argument("--tolerance", type=float, default=0.002, metavar="T",
+                        help=tr("tolerance on each color component, 0..1 (default: 0.002)"))
+    parser.add_argument("--op-rgb", "--op-rvb", dest="op_rvb", action="append", default=[], metavar=tr("NAME"),
+                        help=tr("additional RGB operator to recognize (repeatable)"))
+    parser.add_argument("--op-cmyk", "--op-cmjn", dest="op_cmjn", action="append", default=[], metavar=tr("NAME"),
+                        help=tr("additional CMYK operator to recognize (repeatable)"))
     args = parser.parse_args()
 
     if not re.fullmatch(r"[A-Za-z0-9_.-]+", args.nom):
-        parser.error("--nom ne doit contenir que des lettres, chiffres, « _ », « . » ou « - »")
+        parser.error(tr("--name may only contain letters, digits, “_”, “.” or “-”"))
 
     if args.auto and not args.entree:
-        parser.error("--auto demande un fichier d'entrée")
+        parser.error(tr("--auto requires an input file"))
     if not args.auto:
         import eps_editeur
         eps_editeur.run(args.entree, args.nom, args.tolerance,
@@ -257,17 +265,21 @@ def main():
 
     sortie = args.sortie or os.path.splitext(args.entree)[0] + "_CutContour.eps"
     if os.path.abspath(sortie) == os.path.abspath(args.entree):
-        parser.error("le fichier de sortie doit être différent du fichier d'entrée")
+        parser.error(tr("the output file must be different from the input file"))
     if os.path.exists(sortie) and not args.force:
-        parser.error(f"{sortie} existe déjà (utilisez --force pour l'écraser)")
+        parser.error(tr("{file} already exists (use --force to overwrite it)", file=sortie))
 
-    with open(args.entree, "rb") as fh:
-        data = fh.read()
+    try:
+        with open(args.entree, "rb") as fh:
+            data = fh.read()
+    except OSError as e:
+        sys.exit(tr("Error: cannot read {file} ({reason}).", file=args.entree,
+                    reason=e.strerror or e))
 
     dos_parts = split_dos_eps(data)
     ps_bytes = dos_parts[0] if dos_parts else data
     if not ps_bytes.startswith(b"%!PS"):
-        sys.exit(f"Erreur : {args.entree} n'est pas un fichier PostScript/EPS.")
+        sys.exit(tr("Error: {file} is not a PostScript/EPS file.", file=args.entree))
 
     # latin-1 garde une correspondance octet <-> caractère : les données binaires survivent.
     text = ps_bytes.decode("latin-1")
@@ -275,19 +287,19 @@ def main():
     text, count, (rgb_ops, cmyk_ops) = convert_text(text, args.nom, args.tolerance,
                                                     args.op_rvb, args.op_cmjn)
     if count == 0:
-        sys.exit(f"Aucun magenta pur trouvé dans {args.entree} : rien n'a été écrit.\n"
-                 f"Opérateurs reconnus : RVB {sorted(rgb_ops)}, CMJN {sorted(cmyk_ops)}")
+        sys.exit(tr("No pure magenta found in {file}: nothing was written.", file=args.entree)
+                 + "\n" + tr("Recognized operators: RGB {rgb}, CMYK {cmyk}",
+                              rgb=sorted(rgb_ops), cmyk=sorted(cmyk_ops)))
 
     if re.search(r"^%%LanguageLevel:\s*1\b", text, re.M):
-        print("Attention : le fichier se déclare PostScript niveau 1 ; "
-              "l'espace Separation requiert le niveau 2.", file=sys.stderr)
+        print(tr("Warning: the file declares PostScript level 1; the Separation color space requires level 2."), file=sys.stderr)
 
     ps_bytes = text.encode("latin-1")
     out = join_dos_eps(ps_bytes, *dos_parts[1:]) if dos_parts else ps_bytes
     with open(sortie, "wb") as fh:
         fh.write(out)
 
-    print(f"{count} réglage(s) magenta converti(s) en {args.nom} -> {sortie}")
+    print(tr("{n} magenta setting(s) converted to {spot} -> {file}", n=count, spot=args.nom, file=sortie))
 
 
 if __name__ == "__main__":
@@ -300,7 +312,7 @@ if __name__ == "__main__":
                 if isinstance(e.code, str):
                     print(e.code, file=sys.stderr)
                 try:
-                    input("\nAppuyez sur Entrée pour fermer cette fenêtre.")
+                    input("\n" + tr("Press Enter to close this window."))
                 except (EOFError, KeyboardInterrupt):
                     pass  # pas de clavier (lancé par un script) : on ferme directement
                 raise SystemExit(1) from None
