@@ -1,9 +1,11 @@
 @echo off
+rem Copyright (c) 2026 UTBM CrunchLab
+rem Auteur : Alexandre Willaume
 rem Construit les executables Windows autonomes (Python inclus) dans dist\ :
-rem   construire_exe.bat win7    EPS_CutContour-<version>-windows7-8-x86.exe
+rem   construire_exe.bat win7    CrunchCutContour-<version>-windows7-8-x86.exe
 rem                              Windows 7 SP1, 8 et 8.1 (32 et 64 bits) ; Python 3.8 32 bits,
 rem                              derniere version de Python qui fonctionne sous Windows 7.
-rem   construire_exe.bat win10   EPS_CutContour-<version>-windows10-11-x64.exe
+rem   construire_exe.bat win10   CrunchCutContour-<version>-windows10-11-x64.exe
 rem                              Windows 10 et 11 (64 bits) ; Python 3.13, maintenu.
 rem   construire_exe.bat         les deux.
 rem Chaque Python est telecharge depuis nuget.org dans un sous-dossier (python38, python313) :
@@ -43,12 +45,16 @@ if not exist %PY% (
 %PY% -m pip --version >nul 2>&1 || %PY% -m ensurepip --default-pip || exit /b 1
 %PY% -m pip install --quiet --disable-pip-version-check --no-warn-script-location "%PYINST%" || exit /b 1
 
-for /f "delims=" %%v in ('%PY% -c "import eps_cutcontour; print(eps_cutcontour.VERSION)"') do set VERSION=%%v
-set NOM=EPS_CutContour-%VERSION%-%CIBLE%
+for /f "delims=" %%v in ('%PY% -c "import crunchcutcontour; print(crunchcutcontour.VERSION)"') do set VERSION=%%v
+set NOM=CrunchCutContour-%VERSION%-%CIBLE%
+
+if not exist build\%CIBLE% mkdir build\%CIBLE%
+%PY% version_windows.py "%~dp0build\%CIBLE%\version.txt" %NOM%.exe || exit /b 1
 
 %PY% -m PyInstaller --noconfirm --clean --onefile --console --name %NOM% ^
     --workpath build\%CIBLE% --specpath build\%CIBLE% ^
-    --hidden-import eps_editeur --hidden-import eps_interpreteur eps_cutcontour.py || exit /b 1
+    --version-file "%~dp0build\%CIBLE%\version.txt" ^
+    --hidden-import eps_editeur --hidden-import eps_interpreteur crunchcutcontour.py || exit /b 1
 
 echo.
 echo Executable : %~dp0dist\%NOM%.exe

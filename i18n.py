@@ -1,3 +1,5 @@
+# Copyright © 2026 UTBM CrunchLab
+# Auteur : Alexandre Willaume
 """Traduction de l'interface.
 
 Le texte du code, en anglais, sert de clé : tr("{n} path(s) read.", n=3) renvoie la

@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright © 2026 UTBM CrunchLab
+# Auteur : Alexandre Willaume
 """Convertit les couleurs magenta pur d'un fichier EPS en ton direct CutContour.
 
 Par défaut, le fichier s'ouvre dans un éditeur (navigateur) où l'on clique sur
@@ -13,9 +15,9 @@ magenta pur (C0 M100 J0 N0), reconnu par les RIP d'impression-découpe
 (VersaWorks, Onyx, Caldera...). Les commentaires DSC de l'en-tête sont mis à jour.
 
 Usage :
-  python3 eps_cutcontour.py [entree.eps]                     (éditeur ; sans fichier,
+  python3 crunchcutcontour.py [entree.eps]                     (éditeur ; sans fichier,
                                                               déposez-le dans la page)
-  python3 eps_cutcontour.py --auto entree.eps [-o sortie.eps]
+  python3 crunchcutcontour.py --auto entree.eps [-o sortie.eps]
   Option --language en|fr (ou --langue) : langue de l'interface (voir i18n.py).
 """
 
@@ -29,6 +31,8 @@ import i18n
 from i18n import tr
 
 VERSION = "1.0.0"
+COPYRIGHT = "Copyright © 2026 UTBM CrunchLab"
+AUTEUR = "Alexandre Willaume"
 
 MAGENTA_RVB = (1.0, 0.0, 1.0)
 MAGENTA_CMJN = (0.0, 1.0, 0.0, 0.0)
@@ -224,9 +228,12 @@ def join_dos_eps(ps, wmf, tiff):
 
 def main():
     i18n.initialiser(sys.argv[1:])
+    auteur = tr("Author: {name}", name=AUTEUR)
     parser = argparse.ArgumentParser(
-        description=tr("Turns the pure magenta paths of an EPS file into the CutContour spot color."))
-    parser.add_argument("--version", action="version", version=f"EPS CutContour {VERSION}",
+        prog="CrunchCutContour",
+        description=tr("Turns the pure magenta paths of an EPS file into the CutContour spot color."),
+        epilog=f"{COPYRIGHT} — {auteur}", formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--version", action="version", version=f"CrunchCutContour {VERSION}\n{COPYRIGHT}\n{auteur}",
                         help=tr("show program's version number and exit"))
     parser.add_argument("entree", nargs="?", metavar=tr("FILE.eps"),
                         help=tr("source EPS file (without a file, the editor waits for one to be dropped in the browser)"))

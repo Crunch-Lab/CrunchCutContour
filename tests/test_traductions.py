@@ -1,3 +1,5 @@
+# Copyright © 2026 UTBM CrunchLab
+# Auteur : Alexandre Willaume
 """Vérifie que chaque texte de l'interface est traduit dans chaque langue.
 
 Les textes sont relevés dans le code : tr("…") en Python, t("…") en JavaScript et
@@ -16,7 +18,7 @@ sys.path.insert(0, RACINE)
 
 import i18n  # noqa: E402
 
-FICHIERS = ["eps_cutcontour.py", "eps_editeur.py", "eps_interpreteur.py"]
+FICHIERS = ["crunchcutcontour.py", "eps_editeur.py", "eps_interpreteur.py"]
 JS_T = re.compile(r'\bt\("((?:[^"\\]|\\.)*)"')
 HTML = re.compile(r"\[\[(.+?)\]\]")
 VARIABLE = re.compile(r"\{(\w+)\}")

@@ -1,9 +1,9 @@
-# EPS CutContour
+# CrunchCutContour
 
 Prépare des fichiers EPS pour les imprimantes-découpeuses (Roland VersaWorks et les autres
 logiciels de découpe qui reconnaissent le ton direct `CutContour`) : les contours choisis
 deviennent une **ligne de découpe**, affichée en magenta pur (C0 M100 J0 N0). Le nom du ton
-direct est réglable (`--nom`) pour les logiciels qui en attendent un autre.
+direct est réglable (`--name`) pour les logiciels qui en attendent un autre.
 
 On choisit les contours à la souris, dans le navigateur ; une conversion automatique est aussi
 possible en ligne de commande. Le programme est écrit en Python sans aucune dépendance, et il
@@ -19,16 +19,17 @@ est distribué sous forme d'exécutables autonomes : rien à installer.
 - [Lancer depuis les sources](#lancer-depuis-les-sources)
 - [Construire les exécutables](#construire-les-exécutables)
 - [Organisation du code](#organisation-du-code)
+- [Auteur et droits](#auteur-et-droits)
 
 ## Téléchargement
 
 | Système | Fichier |
 |---|---|
-| Windows 7 SP1, 8, 8.1 (32 ou 64 bits) | `EPS_CutContour-<version>-windows7-8-x86.exe` |
-| Windows 10, 11 (64 bits) | `EPS_CutContour-<version>-windows10-11-x64.exe` |
-| Mac Intel | `EPS_CutContour-<version>-macos-x86_64.zip` |
-| Mac Apple Silicon (M1, M2…) | `EPS_CutContour-<version>-macos-arm64.zip` |
-| Linux 64 bits (glibc 2.35 ou plus : Ubuntu 22.04, Debian 12, Fedora 36…) | `EPS_CutContour-<version>-linux-x86_64.tar.gz` |
+| Windows 7 SP1, 8, 8.1 (32 ou 64 bits) | `CrunchCutContour-<version>-windows7-8-x86.exe` |
+| Windows 10, 11 (64 bits) | `CrunchCutContour-<version>-windows10-11-x64.exe` |
+| Mac Intel | `CrunchCutContour-<version>-macos-x86_64.zip` |
+| Mac Apple Silicon (M1, M2…) | `CrunchCutContour-<version>-macos-arm64.zip` |
+| Linux 64 bits (glibc 2.35 ou plus : Ubuntu 22.04, Debian 12, Fedora 36…) | `CrunchCutContour-<version>-linux-x86_64.tar.gz` |
 
 La version Windows 7/8 fonctionne aussi sous Windows 10 et 11, mais elle embarque Python 3.8,
 qui ne reçoit plus de correctifs : sous Windows 10 et 11, prenez la version 10/11.
@@ -47,8 +48,8 @@ qui ne reçoit plus de correctifs : sous Windows 10 et 11, prenez la version 10/
   programme s'ouvre dans le Terminal.
 - **Linux** :
   ```bash
-  tar -xzf EPS_CutContour-1.0.0-linux-x86_64.tar.gz
-  ./EPS_CutContour-1.0.0-linux-x86_64
+  tar -xzf CrunchCutContour-1.0.0-linux-x86_64.tar.gz
+  ./CrunchCutContour-1.0.0-linux-x86_64
   ```
 
 ## Utilisation
@@ -60,7 +61,7 @@ qui ne reçoit plus de correctifs : sous Windows 10 et 11, prenez la version 10/
   Le fichier doit se terminer par `.eps`, commencer par `%!PS` et contenir au moins un tracé
   lisible ; sinon la page indique pourquoi et attend un autre fichier.
 - **Glisser un fichier EPS sur l'icône de l'exécutable** (Windows), ou le donner en argument
-  (`EPS_CutContour fichier.eps`) : l'éditeur s'ouvre directement sur ce fichier.
+  (`CrunchCutContour fichier.eps`) : l'éditeur s'ouvre directement sur ce fichier.
 
 Une fenêtre de terminal reste ouverte pendant l'utilisation : la fermer, faire Ctrl+C ou
 cliquer sur **Quitter** dans la page arrête le programme.
@@ -109,10 +110,10 @@ rouge « Fichier non enregistré » confirme le résultat.
 ## Ligne de commande
 
 ```
-EPS_CutContour [options] [fichier.eps]
+CrunchCutContour [options] [fichier.eps]
 ```
 
-Depuis les sources, remplacez `EPS_CutContour` par `python3 eps_cutcontour.py`.
+Depuis les sources, remplacez `CrunchCutContour` par `python3 crunchcutcontour.py`.
 
 | Option | Effet |
 |---|---|
@@ -135,11 +136,11 @@ Les noms français des options de la version 1.0.0 restent acceptés : `--sortie
 Exemples :
 
 ```bash
-EPS_CutContour --auto stickers.eps
+CrunchCutContour --auto stickers.eps
 ```
 
 ```bash
-EPS_CutContour --auto stickers.eps -o pret_a_decouper.eps --force
+CrunchCutContour --auto stickers.eps -o pret_a_decouper.eps --force
 ```
 
 ## Langues
@@ -197,7 +198,7 @@ près (fins de ligne, données binaires, aperçu TIFF/WMF des EPS « DOS » comp
 Il suffit de Python 3.8 ou plus récent ; aucune dépendance.
 
 ```bash
-python3 eps_cutcontour.py
+python3 crunchcutcontour.py
 ```
 
 L'éditeur est un petit serveur HTTP local : il n'écoute que sur `127.0.0.1`, sur un port
@@ -255,7 +256,7 @@ Le workflow [.github/workflows/release.yml](.github/workflows/release.yml) const
 cinq fichiers (Windows 7/8, Windows 10/11, macOS Intel, macOS Apple Silicon, Linux) sur les
 machines de GitHub, avec les mêmes scripts.
 
-1. Mettre à jour `VERSION` dans [eps_cutcontour.py](eps_cutcontour.py) et
+1. Mettre à jour `VERSION` dans [crunchcutcontour.py](crunchcutcontour.py) et
    [NOTES_DE_VERSION.md](NOTES_DE_VERSION.md).
 2. Pousser l'étiquette correspondante, par exemple :
    ```bash
@@ -270,7 +271,7 @@ les fichiers sont alors dans les « artifacts » de l'exécution.
 
 | Fichier | Rôle |
 |---|---|
-| [eps_cutcontour.py](eps_cutcontour.py) | Point d'entrée et options ; conversion du magenta pur en CutContour (`--auto`), en-tête DSC, EPS « DOS » |
+| [crunchcutcontour.py](crunchcutcontour.py) | Point d'entrée et options ; conversion du magenta pur en CutContour (`--auto`), en-tête DSC, EPS « DOS » |
 | [eps_editeur.py](eps_editeur.py) | Éditeur : serveur HTTP local, pages web (dépôt et édition), modification des contours choisis |
 | [eps_interpreteur.py](eps_interpreteur.py) | Interpréteur PostScript simplifié : exécute le fichier et relève chaque tracé, sa couleur et l'instruction source qui l'a peint |
 | [i18n.py](i18n.py) | Traduction : choix et détection de la langue, fonction `tr()`, traduction de l'aide d'argparse |
@@ -278,4 +279,15 @@ les fichiers sont alors dans les « artifacts » de l'exécution.
 | [tests/](tests) | Tests (traductions complètes, détection de la langue) |
 | [construire_exe.bat](construire_exe.bat) | Construction des exécutables Windows |
 | [construire.sh](construire.sh) | Construction des exécutables macOS et Linux |
+| [version_windows.py](version_windows.py) | Propriétés des exécutables Windows (société, copyright, version) |
 | [NOTES_DE_VERSION.md](NOTES_DE_VERSION.md) | Texte de la release GitHub |
+
+## Auteur et droits
+
+Copyright © 2026 UTBM CrunchLab.
+
+Auteur : Alexandre Willaume.
+
+Le nom, l'auteur et le copyright sont définis une seule fois, dans
+[crunchcutcontour.py](crunchcutcontour.py) (`COPYRIGHT`, `AUTEUR`) ; ils sont repris par
+`--version`, l'aide, le pied des pages de l'éditeur et les propriétés des exécutables Windows.

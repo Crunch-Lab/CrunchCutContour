@@ -1,3 +1,5 @@
+# Copyright © 2026 UTBM CrunchLab
+# Auteur : Alexandre Willaume
 """Traduction française de l'interface.
 
 CATALOGUE : texte anglais du code -> texte français. Les {noms} entre accolades sont
@@ -12,6 +14,8 @@ CATALOGUE = {
         "--auto : fichier EPS produit (défaut : <entree>_CutContour.eps)",
     "--name may only contain letters, digits, “_”, “.” or “-”":
         "--nom ne doit contenir que des lettres, chiffres, « _ », « . » ou « - »",
+    "Author: {name}":
+        "Auteur : {name}",
     "Added cut":
         "Coupe ajoutée",
     "added cut — click to undo":
@@ -32,8 +36,6 @@ CATALOGUE = {
         "comparaison : nombres ou chaînes attendus",
     "convert directly, without opening the editor":
         "convertir directement, sans ouvrir l'éditeur",
-    "CutContour Editor":
-        "Éditeur CutContour",
     "Deselect all":
         "Tout désélectionner",
     "division by zero":

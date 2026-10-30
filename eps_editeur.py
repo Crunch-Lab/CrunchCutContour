@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright © 2026 UTBM CrunchLab
+# Auteur : Alexandre Willaume
 """Éditeur interactif : affiche un EPS dans le navigateur et laisse choisir au clic
 les tracés à passer en magenta pur, puis enregistre en magenta ou en CutContour.
 
@@ -19,7 +21,7 @@ import threading
 import urllib.parse
 import webbrowser
 
-import eps_cutcontour as conv
+import crunchcutcontour as conv
 import eps_interpreteur as interp
 import i18n
 from i18n import tr
@@ -179,6 +181,24 @@ class Editeur:
 
 MAX_UPLOAD = 200 * 1024 * 1024
 
+# Favicon : le « n » surmonté d'une barre du logo UTBM CrunchLab, redessiné en vectoriel
+# (glyphe de 181 x 281, centré dans un carré de 293). Noir, ou blanc en thème sombre.
+FAVICON_SVG = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="-56 -6 293 293">'
+               '<style>path{fill:#000}@media (prefers-color-scheme:dark){path{fill:#fff}}</style>'
+               '<path d="M0 0H181V42H0Z'
+               'M0 281V173.5A90.5 90.5 0 0 1 181 173.5V281H133V173.5A42.5 42.5 0 0 0 48 173.5V281Z"/></svg>')
+# Même dessin en PNG 32 x 32, pour les navigateurs qui n'affichent pas les favicons SVG.
+FAVICON_PNG = (
+    "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAB2klEQVR42u2XOy9EQRTHf3P3rmTZiKXQS/gMFHwGjZ5EL1H4"
+    "GhKFKEmEQoFaokB8A1GJWCpBITbCPq7mTHKMuc/coNiTTOZxzznzP497ZsbgJwPMA8NAJPMiZGVfgSOZJ5LdKACaIlBGa4pO"
+    "XGPCBDAtoFuSB1pxDGEGj5QBgCIAhsRtAcUpULoyAYhUvwDUKIfeHd3/h5LiU0mRM0peZ3wcdcsAHKQAq+TNGZODL1BW1IEJ"
+    "YFzmj8AN8KaA9MqKtwY5DWwD955i8wDsADMFDEz9jWrApmfTripWum0Bg46OQpYbYAS4UBu2xb2+1laALoGGk6y5NrcJdSIK"
+    "P5SFHRXjSMYdNbe8p6KnkheEzfRVUfTpuN2On4GnmG9WZi3Db+1NuoYo13G2/TEwB4xKmwUOHZ6ejF+AsTxJacvzknK37jcS"
+    "ZNcd3rb0yxkPv2+u2vck1rU6oEKVYKGsGeDKk7AHcWHw/SI96adUAbJrezIOnKTryFoE7Co9FtSkozsWgD7/6x5wtylxNMBd"
+    "wtH+434QFCjRUcq3JK+SJQS/Sn0AfQB9AH8OIOlw8F04stzxIsWfWojyvoyqGQBURWbA0ZX7ZbSinue2xJ4n3PHt2hmwKFYb"
+    "9Tz3voy+AHJrvSQZHKIjAAAAAElFTkSuQmCC"
+)
+
 
 class Application:
     """État du serveur : le document ouvert (ou aucun, en attente d'un dépôt)."""
@@ -215,9 +235,14 @@ def fill_page(template, token):
                       f'{html.escape(nom)}</option>' for code, (nom, _) in i18n.LANGUES.items())
     ancien = (html.escape(tr("This browser is too old for the editor (Internet Explorer is not supported)."))
               + "<br>" + html.escape(tr("Open this address in Chrome, Firefox or Edge:")) + "<br><b>")
-    return (page.replace("__LANGUES__", options).replace("__LANG__", i18n.langue())
+    favicon = (f'<link rel="icon" type="image/png" sizes="32x32" href="data:image/png;base64,{FAVICON_PNG}">\n'
+               f'<link rel="icon" type="image/svg+xml" sizes="any" '
+               f'href="data:image/svg+xml,{urllib.parse.quote(FAVICON_SVG)}">')
+    return (page.replace("__LANGUES__", options).replace("__FAVICON__", favicon)
+            .replace("__LANG__", i18n.langue())
             .replace("__ANCIEN__", json.dumps(ancien))
             .replace("__TRADUCTIONS__", _json_script(i18n.catalogue()))
+            .replace("__CREDIT__", html.escape(f"{conv.COPYRIGHT} — " + tr("Author: {name}", name=conv.AUTEUR)))
             .replace("__JETON__", json.dumps(token)))
 
 
@@ -400,6 +425,7 @@ svg { display: block; }
 footer { display: flex; gap: 16px; align-items: center; padding: 8px 16px; background: var(--barre);
          border-top: 1px solid var(--bord); min-height: 38px; }
 #info { color: var(--doux); flex: 1; }
+.credit { color: var(--doux); font-size: 12px; white-space: nowrap; }
 #message.ok { color: var(--ok); } #message.erreur { color: var(--erreur); }
 #alerte { display: none; padding: 8px 16px; background: #fff4e5; color: #6b3d00; border-bottom: 1px solid #f0c27b; }
 #legende { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 20px; padding: 6px 16px;
@@ -433,7 +459,8 @@ PAGE = r"""<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>[[CutContour Editor]]</title>
+<title>CrunchCutContour</title>
+__FAVICON__
 <style>
 __STYLE__
 </style>
@@ -447,7 +474,7 @@ if (!window.fetch || !window.Promise || !("noModule" in document.createElement("
 }
 </script>
 <header>
-  <h1>[[CutContour Editor]] <small id="fichier"></small></h1>
+  <h1>CrunchCutContour <small id="fichier"></small></h1>
   <div class="groupe">
     <button id="moins" title="[[Zoom out]]">−</button>
     <button id="ajuster">[[Fit]]</button>
@@ -491,6 +518,7 @@ if (!window.fetch || !window.Promise || !("noModule" in document.createElement("
 <footer>
   <span id="info"></span>
   <span id="message"></span>
+  <span class="credit">__CREDIT__</span>
 </footer>
 <script id="donnees" type="application/json">__DONNEES__</script>
 <script>
@@ -665,7 +693,7 @@ document.querySelectorAll("input[name=mode]").forEach(r => r.addEventListener("c
 }));
 
 // Changement de langue : la page est rechargée ; la sélection en cours est gardée le temps du rechargement.
-const CLE_ETAT = "eps-cutcontour-etat";
+const CLE_ETAT = "crunchcutcontour-etat";
 window.avantChangementLangue = () => {
   try {
     sessionStorage.setItem(CLE_ETAT, JSON.stringify({
@@ -833,7 +861,8 @@ PAGE_DEPOT = r"""<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>[[CutContour Editor]]</title>
+<title>CrunchCutContour</title>
+__FAVICON__
 <style>
 __STYLE__
 </style>
@@ -847,7 +876,7 @@ if (!window.fetch || !window.Promise || !("noModule" in document.createElement("
 }
 </script>
 <header>
-  <h1>[[CutContour Editor]]</h1>
+  <h1>CrunchCutContour</h1>
   <span class="espace"></span>
   <select id="langue" aria-label="[[Language]]">__LANGUES__</select>
   <button id="quitter">[[Quit]]</button>
@@ -861,6 +890,10 @@ if (!window.fetch || !window.Promise || !("noModule" in document.createElement("
     <div id="etat-depot" role="status" aria-live="polite"></div>
   </div>
 </main>
+<footer>
+  <span class="espace"></span>
+  <span class="credit">__CREDIT__</span>
+</footer>
 <script>
 "use strict";
 __I18N_JS__
