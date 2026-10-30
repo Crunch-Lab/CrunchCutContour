@@ -1,0 +1,9 @@
+# Construction
+build/
+dist/
+release/
+venv-build/
+python38/
+python313/
+*.spec
+__pycache__/
