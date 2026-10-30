@@ -5,7 +5,8 @@
 
 Par défaut, le fichier s'ouvre dans un éditeur (navigateur) où l'on clique sur
 les contours à passer en magenta pur avant d'enregistrer (voir eps_editeur.py).
-Avec --auto, la conversion se fait directement, sans éditeur.
+Avec --auto, la conversion se fait directement, sans éditeur. Un fichier SVG est d'abord
+converti en EPS (svg_eps.py) ; --to-eps fait seulement cette conversion.
 
 Le script repère dans le code PostScript chaque réglage de couleur magenta pur :
   - RVB  : 1 0 1 setrgbcolor   (ou un alias, ex. « 1 0 1 rg » dans les EPS cairo)
@@ -18,6 +19,7 @@ Usage :
   python3 crunchcutcontour.py [entree.eps]                     (éditeur ; sans fichier,
                                                               déposez-le dans la page)
   python3 crunchcutcontour.py --auto entree.eps [-o sortie.eps]
+  python3 crunchcutcontour.py --to-eps entree.svg [-o sortie.eps]
   Option --language en|fr (ou --langue) : langue de l'interface (voir i18n.py).
 """
 
@@ -28,6 +30,7 @@ import struct
 import sys
 
 import i18n
+import svg_eps
 from i18n import tr
 
 VERSION = "1.0.0"
@@ -231,16 +234,19 @@ def main():
     auteur = tr("Author: {name}", name=AUTEUR)
     parser = argparse.ArgumentParser(
         prog="CrunchCutContour",
-        description=tr("Turns the pure magenta paths of an EPS file into the CutContour spot color."),
+        description=tr("Turns the pure magenta paths of an EPS or SVG file into the CutContour spot color."),
         epilog=f"{COPYRIGHT} — {auteur}", formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--version", action="version", version=f"CrunchCutContour {VERSION}\n{COPYRIGHT}\n{auteur}",
                         help=tr("show program's version number and exit"))
-    parser.add_argument("entree", nargs="?", metavar=tr("FILE.eps"),
-                        help=tr("source EPS file (without a file, the editor waits for one to be dropped in the browser)"))
+    parser.add_argument("entree", nargs="?", metavar=tr("FILE"),
+                        help=tr("source EPS or SVG file (without a file, the editor waits for one to be "
+                                "dropped in the browser)"))
     parser.add_argument("--language", "--langue", dest="langue", choices=sorted(i18n.LANGUES),
                         help=tr("interface language (default: the system language)"))
     parser.add_argument("--auto", action="store_true",
                         help=tr("convert directly, without opening the editor"))
+    parser.add_argument("--to-eps", action="store_true",
+                        help=tr("SVG: only convert to EPS, without cut line (default output: <input>.eps)"))
     parser.add_argument("--no-browser", "--pas-de-navigateur", dest="pas_de_navigateur", action="store_true",
                         help=tr("editor: print the address without opening the browser"))
     parser.add_argument("--port", type=int, default=0,
@@ -262,19 +268,13 @@ def main():
     if not re.fullmatch(r"[A-Za-z0-9_.-]+", args.nom):
         parser.error(tr("--name may only contain letters, digits, “_”, “.” or “-”"))
 
-    if args.auto and not args.entree:
-        parser.error(tr("--auto requires an input file"))
-    if not args.auto:
+    if (args.auto or args.to_eps) and not args.entree:
+        parser.error(tr("--auto and --to-eps require an input file"))
+    if not (args.auto or args.to_eps):
         import eps_editeur
         eps_editeur.run(args.entree, args.nom, args.tolerance,
                         browser=not args.pas_de_navigateur, port=args.port)
         return
-
-    sortie = args.sortie or os.path.splitext(args.entree)[0] + "_CutContour.eps"
-    if os.path.abspath(sortie) == os.path.abspath(args.entree):
-        parser.error(tr("the output file must be different from the input file"))
-    if os.path.exists(sortie) and not args.force:
-        parser.error(tr("{file} already exists (use --force to overwrite it)", file=sortie))
 
     try:
         with open(args.entree, "rb") as fh:
@@ -282,6 +282,30 @@ def main():
     except OSError as e:
         sys.exit(tr("Error: cannot read {file} ({reason}).", file=args.entree,
                     reason=e.strerror or e))
+
+    svg = svg_eps.est_svg(data, args.entree)
+    if args.to_eps and not svg:
+        parser.error(tr("--to-eps only applies to SVG files"))
+    suffixe = ".eps" if args.to_eps else "_CutContour.eps"
+    sortie = args.sortie or os.path.splitext(args.entree)[0] + suffixe
+    if os.path.abspath(sortie) == os.path.abspath(args.entree):
+        parser.error(tr("the output file must be different from the input file"))
+    if os.path.exists(sortie) and not args.force:
+        parser.error(tr("{file} already exists (use --force to overwrite it)", file=sortie))
+
+    if svg:
+        try:
+            eps, avertissements = svg_eps.convertir(data, os.path.basename(args.entree))
+        except svg_eps.SvgError as e:
+            sys.exit(tr("Error: {reason}", reason=e))
+        for message in avertissements:
+            print(tr("Warning: {message}", message=message), file=sys.stderr)
+        data = eps.encode("latin-1")
+        if args.to_eps:
+            with open(sortie, "wb") as fh:
+                fh.write(data)
+            print(tr("SVG converted to EPS -> {file}", file=sortie))
+            return
 
     dos_parts = split_dos_eps(data)
     ps_bytes = dos_parts[0] if dos_parts else data

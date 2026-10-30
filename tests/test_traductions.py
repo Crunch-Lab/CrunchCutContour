@@ -18,7 +18,7 @@ sys.path.insert(0, RACINE)
 
 import i18n  # noqa: E402
 
-FICHIERS = ["crunchcutcontour.py", "eps_editeur.py", "eps_interpreteur.py"]
+FICHIERS = ["crunchcutcontour.py", "eps_editeur.py", "eps_interpreteur.py", "svg_eps.py"]
 JS_T = re.compile(r'\bt\("((?:[^"\\]|\\.)*)"')
 HTML = re.compile(r"\[\[(.+?)\]\]")
 VARIABLE = re.compile(r"\{(\w+)\}")

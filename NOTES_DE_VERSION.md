@@ -1,4 +1,4 @@
-CrunchCutContour transforme les contours d'un fichier EPS en ligne de découpe (ton direct
+CrunchCutContour transforme les contours d'un fichier EPS ou SVG en ligne de découpe (ton direct
 **CutContour**, magenta pur) pour les imprimantes-découpeuses. On choisit les contours à la
 souris dans le navigateur. Chaque fichier ci-dessous est autonome : rien à installer.
 
@@ -23,6 +23,8 @@ qui n'est plus mis à jour : sous Windows 10 et 11, préférez la version 10/11.
   l'éditeur s'ouvre sur ce fichier ; le résultat est enregistré à côté de l'original.
 - Dans l'éditeur, cliquez sur un contour pour le passer en magenta pur, puis **Enregistrer**
   en CutContour ou en magenta pur.
+- **SVG** : un fichier SVG est converti en EPS à l'ouverture. `CrunchCutContour --to-eps logo.svg`
+  fait une simple conversion SVG → EPS. Le texte doit être vectorisé avant l'export.
 - Conversion sans éditeur : `CrunchCutContour --auto fichier.eps` convertit tout le magenta pur
   du fichier en CutContour.
 - La fenêtre de terminal reste ouverte pendant l'utilisation : la fermer, ou cliquer sur

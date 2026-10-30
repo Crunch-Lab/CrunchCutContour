@@ -1,9 +1,10 @@
 # CrunchCutContour
 
-Prépare des fichiers EPS pour les imprimantes-découpeuses (Roland VersaWorks et les autres
+Prépare des fichiers EPS ou SVG pour les imprimantes-découpeuses (Roland VersaWorks et les autres
 logiciels de découpe qui reconnaissent le ton direct `CutContour`) : les contours choisis
 deviennent une **ligne de découpe**, affichée en magenta pur (C0 M100 J0 N0). Le nom du ton
-direct est réglable (`--name`) pour les logiciels qui en attendent un autre.
+direct est réglable (`--name`) pour les logiciels qui en attendent un autre. Les fichiers SVG
+sont convertis en EPS ; le programme sert aussi de simple convertisseur SVG → EPS.
 
 On choisit les contours à la souris, dans le navigateur ; une conversion automatique est aussi
 possible en ligne de commande. Le programme est écrit en Python sans aucune dépendance, et il
@@ -15,6 +16,7 @@ est distribué sous forme d'exécutables autonomes : rien à installer.
 - [Utilisation](#utilisation)
 - [Ligne de commande](#ligne-de-commande)
 - [Ce que le programme modifie dans le fichier](#ce-que-le-programme-modifie-dans-le-fichier)
+- [Import SVG](#import-svg)
 - [Limites](#limites)
 - [Lancer depuis les sources](#lancer-depuis-les-sources)
 - [Construire les exécutables](#construire-les-exécutables)
@@ -57,11 +59,14 @@ qui ne reçoit plus de correctifs : sous Windows 10 et 11, prenez la version 10/
 ### Ouvrir un fichier
 
 - **Lancer le programme sans fichier** (double-clic) : le navigateur s'ouvre sur une page
-  « Déposez un fichier EPS ici ». Glissez-y un fichier ou choisissez-le avec le bouton.
-  Le fichier doit se terminer par `.eps`, commencer par `%!PS` et contenir au moins un tracé
-  lisible ; sinon la page indique pourquoi et attend un autre fichier.
-- **Glisser un fichier EPS sur l'icône de l'exécutable** (Windows), ou le donner en argument
-  (`CrunchCutContour fichier.eps`) : l'éditeur s'ouvre directement sur ce fichier.
+  « Déposez un fichier EPS ou SVG ici ». Glissez-y un fichier ou choisissez-le avec le bouton.
+  Le fichier doit être un EPS (`.eps`, commençant par `%!PS`) ou un SVG (`.svg`, `.svgz`) et
+  contenir au moins un tracé lisible ; sinon la page indique pourquoi et attend un autre fichier.
+- **Glisser un fichier EPS ou SVG sur l'icône de l'exécutable** (Windows), ou le donner en
+  argument (`CrunchCutContour fichier.eps`) : l'éditeur s'ouvre directement sur ce fichier.
+
+Un SVG est converti en EPS dès l'ouverture (voir [Import SVG](#import-svg)) ; un bandeau
+signale ce qui n'a pas pu être converti (texte, dégradés…).
 
 Une fenêtre de terminal reste ouverte pendant l'utilisation : la fermer, faire Ctrl+C ou
 cliquer sur **Quitter** dans la page arrête le programme.
@@ -94,9 +99,10 @@ Choisissez le format puis cliquez sur **Enregistrer** :
   les logiciels de découpe. Le magenta pur déjà présent dans le fichier est converti aussi.
 - **Magenta pur** : les contours choisis passent en magenta RVB pur, sans ton direct (pour un
   logiciel qui fait lui-même la conversion, ou pour retoucher le fichier ailleurs).
+- **EPS seul** (fichiers SVG uniquement) : le SVG converti en EPS, sans ligne de découpe.
 
-Le nom proposé est `<nom>_CutContour.eps` ou `<nom>_magenta.eps` ; il est modifiable. Le
-fichier ouvert n'est jamais modifié.
+Le nom proposé est `<nom>_CutContour.eps`, `<nom>_magenta.eps` ou `<nom>.eps` ; il est
+modifiable. Le fichier ouvert n'est jamais modifié.
 
 - **Fichier donné en argument** : le résultat est écrit à côté de l'original. Un fichier de même
   nom est remplacé, et le message le signale.
@@ -110,7 +116,7 @@ rouge « Fichier non enregistré » confirme le résultat.
 ## Ligne de commande
 
 ```
-CrunchCutContour [options] [fichier.eps]
+CrunchCutContour [options] [fichier.eps | fichier.svg]
 ```
 
 Depuis les sources, remplacez `CrunchCutContour` par `python3 crunchcutcontour.py`.
@@ -118,8 +124,9 @@ Depuis les sources, remplacez `CrunchCutContour` par `python3 crunchcutcontour.p
 | Option | Effet |
 |---|---|
 | *(sans fichier)* | Éditeur : attend qu'on dépose un fichier dans la page |
-| `fichier.eps` | Éditeur ouvert sur ce fichier |
+| `fichier.eps`, `fichier.svg` | Éditeur ouvert sur ce fichier |
 | `--auto` | Conversion directe, sans éditeur : tout le magenta pur devient CutContour |
+| `--to-eps` | SVG : conversion en EPS seulement, sans ligne de découpe (défaut : `<fichier>.eps`) |
 | `-o`, `--output FICHIER` | Avec `--auto` : fichier produit (défaut : `<fichier>_CutContour.eps`) |
 | `-f`, `--force` | Avec `--auto` : écraser le fichier produit s'il existe |
 | `--name NOM` | Nom du ton direct (défaut : `CutContour`) |
@@ -141,6 +148,10 @@ CrunchCutContour --auto stickers.eps
 
 ```bash
 CrunchCutContour --auto stickers.eps -o pret_a_decouper.eps --force
+```
+
+```bash
+CrunchCutContour --to-eps logo.svg
 ```
 
 ## Langues
@@ -177,6 +188,28 @@ près (fins de ligne, données binaires, aperçu TIFF/WMF des EPS « DOS » comp
   couleur dans un `gsave … grestore`, ce qui ne change rien au reste du dessin.
 - **En-tête** : le ton direct est déclaré dans les commentaires DSC (`%%DocumentCustomColors`
   et `%%CMYKCustomColor`), en conservant les autres tons directs déjà déclarés.
+
+## Import SVG
+
+Un SVG est converti en EPS (PostScript niveau 2) par le programme lui-même, sans logiciel
+externe. Une forme du SVG devient un tracé de l'EPS, sélectionnable seul dans l'éditeur. Un
+contour **magenta pur** (`#ff00ff`, `magenta`, `fuchsia`) dans le SVG devient directement une
+ligne de découpe : préparez-le dans Inkscape ou Illustrator, puis `--auto`.
+
+- **Pris en charge** : `path` (toutes les commandes, arcs compris), `rect` (coins arrondis),
+  `circle`, `ellipse`, `line`, `polyline`, `polygon` ; groupes, `use` et `symbol`, `svg`
+  imbriqués, `switch` ; transformations ; couleurs nommées, `#rgb`, `#rrggbb`, `rgb()`,
+  `hsl()`, `currentColor` ; remplissage (règle `evenodd` comprise) et contour (épaisseur,
+  jointures, extrémités, pointillés) ; feuilles `<style>` simples (sélecteurs de type,
+  `.classe`, `#id` : c'est la forme des exports Illustrator) ; `viewBox`,
+  `preserveAspectRatio` et unités (`mm`, `cm`, `in`, `pt`, `px`…) ; fichiers `.svgz`.
+- **Approché** : les dégradés et motifs deviennent une couleur unie (moyenne du dégradé) ; la
+  transparence est simulée en mélangeant la couleur avec du blanc.
+- **Non converti** (un avertissement le signale) : le texte (vectorisez-le avant l'export), les
+  images, les découpes et masques, les filtres, les marqueurs.
+- La taille de la page vient de `width` et `height` du SVG (1 px = 0,75 pt), ou à défaut de sa
+  `viewBox`.
+- Par sécurité, les SVG qui déclarent des entités XML (`<!ENTITY …>`) sont refusés.
 
 ## Limites
 
@@ -273,10 +306,11 @@ les fichiers sont alors dans les « artifacts » de l'exécution.
 |---|---|
 | [crunchcutcontour.py](crunchcutcontour.py) | Point d'entrée et options ; conversion du magenta pur en CutContour (`--auto`), en-tête DSC, EPS « DOS » |
 | [eps_editeur.py](eps_editeur.py) | Éditeur : serveur HTTP local, pages web (dépôt et édition), modification des contours choisis |
+| [svg_eps.py](svg_eps.py) | Conversion SVG → EPS |
 | [eps_interpreteur.py](eps_interpreteur.py) | Interpréteur PostScript simplifié : exécute le fichier et relève chaque tracé, sa couleur et l'instruction source qui l'a peint |
 | [i18n.py](i18n.py) | Traduction : choix et détection de la langue, fonction `tr()`, traduction de l'aide d'argparse |
 | [catalogue_fr.py](catalogue_fr.py), [catalogue_en.py](catalogue_en.py) | Textes de chaque langue |
-| [tests/](tests) | Tests (traductions complètes, détection de la langue) |
+| [tests/](tests) | Tests : traductions complètes, détection de la langue, conversion SVG |
 | [construire_exe.bat](construire_exe.bat) | Construction des exécutables Windows |
 | [construire.sh](construire.sh) | Construction des exécutables macOS et Linux |
 | [version_windows.py](version_windows.py) | Propriétés des exécutables Windows (société, copyright, version) |

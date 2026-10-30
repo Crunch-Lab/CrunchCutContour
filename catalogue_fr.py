@@ -8,14 +8,14 @@ ARGPARSE : textes anglais du module argparse (aide et erreurs de la ligne de com
 """
 
 CATALOGUE = {
-    "--auto requires an input file":
-        "--auto demande un fichier d'entrée",
+    "--auto and --to-eps require an input file":
+        "--auto et --to-eps demandent un fichier d'entrée",
     "--auto: output EPS file (default: <input>_CutContour.eps)":
         "--auto : fichier EPS produit (défaut : <entree>_CutContour.eps)",
     "--name may only contain letters, digits, “_”, “.” or “-”":
         "--nom ne doit contenir que des lettres, chiffres, « _ », « . » ou « - »",
-    "Author: {name}":
-        "Auteur : {name}",
+    "--to-eps only applies to SVG files":
+        "--to-eps ne s'applique qu'aux fichiers SVG",
     "Added cut":
         "Coupe ajoutée",
     "added cut — click to undo":
@@ -24,6 +24,8 @@ CATALOGUE = {
         "opérateur CMJN supplémentaire à reconnaître (répétable)",
     "additional RGB operator to recognize (repeatable)":
         "opérateur RVB supplémentaire à reconnaître (répétable)",
+    "Author: {name}":
+        "Auteur : {name}",
     "Check failed: some paths did not turn magenta. Nothing was written.":
         "Vérification échouée : certains tracés ne sont pas passés en magenta. Rien n'a été écrit.",
     "Choose a file…":
@@ -32,10 +34,14 @@ CATALOGUE = {
         "cliquer pour lui ajouter un contour magenta",
     "click to turn it magenta":
         "cliquer pour le passer en magenta",
+    "Clipping paths and masks are ignored.":
+        "Les découpes (clip-path) et les masques sont ignorés.",
     "comparison: numbers or strings expected":
         "comparaison : nombres ou chaînes attendus",
     "convert directly, without opening the editor":
         "convertir directement, sans ouvrir l'éditeur",
+    "Converted SVG, without cut line":
+        "SVG converti, sans ligne de découpe",
     "Deselect all":
         "Tout désélectionner",
     "division by zero":
@@ -44,10 +50,10 @@ CATALOGUE = {
         "Téléchargé ({format}) : {name}",
     "Drag it from your file manager, or choose it.":
         "Glissez-le depuis l'explorateur de fichiers, ou choisissez-le.",
-    "Drop an EPS file here":
-        "Déposez un fichier EPS ici",
-    "Drop the EPS file to open it":
-        "Déposez le fichier EPS pour l'ouvrir",
+    "Drop an EPS or SVG file here":
+        "Déposez un fichier EPS ou SVG ici",
+    "Drop the EPS or SVG file to open it":
+        "Déposez le fichier EPS ou SVG pour l'ouvrir",
     "Editor running at: {url}":
         "Éditeur ouvert sur : {url}",
     "Editor stopped. You can close this tab.":
@@ -56,8 +62,12 @@ CATALOGUE = {
         "éditeur : port local à utiliser (défaut : aléatoire)",
     "editor: print the address without opening the browser":
         "éditeur : afficher l'adresse sans ouvrir le navigateur",
+    "Embedded images are not converted.":
+        "Les images incorporées ne sont pas converties.",
     "end of image data not found":
         "fin des données d'image introuvable",
+    "EPS only":
+        "EPS seul",
     "Error: cannot read {file} ({reason}).":
         "Erreur : impossible de lire {file} ({reason}).",
     "Error: {file} is not a PostScript/EPS file.":
@@ -70,18 +80,22 @@ CATALOGUE = {
         "exécution trop longue (boucle infinie ?)",
     "Fade artwork":
         "Estomper le dessin",
+    "FILE":
+        "FICHIER",
     "File not opened":
         "Fichier non ouvert",
     "File not saved":
         "Fichier non enregistré",
     "File too large or invalid request.":
         "Fichier trop volumineux ou requête invalide.",
-    "FILE.eps":
-        "FICHIER.eps",
     "fill":
         "aplat",
+    "Filters (blur, shadow…) are ignored.":
+        "Les filtres (flou, ombre…) sont ignorés.",
     "Fit":
         "Ajuster",
+    "Gradients and patterns are replaced by a flat color.":
+        "Les dégradés et les motifs sont remplacés par une couleur unie.",
     "image data read by a procedure is not supported":
         "données d'image lues par une procédure non gérée",
     "image data with the {filter} filter is not supported":
@@ -94,6 +108,10 @@ CATALOGUE = {
         "Nom de fichier invalide : un simple nom terminé par .eps.",
     "invalid hexadecimal string":
         "chaîne hexadécimale invalide",
+    "Invalid SVG file ({reason}).":
+        "Fichier SVG invalide ({reason}).",
+    "Invalid SVGZ file ({reason}).":
+        "Fichier SVGZ invalide ({reason}).",
     "Keep this window open while you work.":
         "Gardez cette fenêtre ouverte pendant l'utilisation.",
     "Language":
@@ -108,6 +126,8 @@ CATALOGUE = {
         "ligne {line} : {error}",
     "logical operation: booleans or integers expected":
         "opération logique : booléens ou entiers attendus",
+    "Markers (arrowheads…) are ignored.":
+        "Les marqueurs (pointes de flèche…) sont ignorés.",
     "NAME":
         "NOM",
     "No file given: drop an EPS file onto the page in your browser.":
@@ -136,8 +156,8 @@ CATALOGUE = {
         "Ouvrir un autre fichier…",
     "Open this address in Chrome, Firefox or Edge:":
         "Ouvrez cette adresse dans Chrome, Firefox ou Edge :",
-    "Or drop an EPS file anywhere on the page":
-        "Ou déposez un fichier EPS n'importe où dans la page",
+    "Or drop an EPS or SVG file anywhere on the page":
+        "Ou déposez un fichier EPS ou SVG n'importe où dans la page",
     "Original cut":
         "Coupe d'origine",
     "original cut (already in the file)":
@@ -178,12 +198,24 @@ CATALOGUE = {
         "Enregistrement…",
     "show program's version number and exit":
         "afficher la version et quitter",
-    "source EPS file (without a file, the editor waits for one to be dropped in the browser)":
-        "fichier EPS source (sans fichier : l'éditeur attend un dépôt dans le navigateur)",
+    "source EPS or SVG file (without a file, the editor waits for one to be dropped in the browser)":
+        "fichier EPS ou SVG source (sans fichier : l'éditeur attend un dépôt dans le navigateur)",
     "spot color name (default: CutContour)":
         "nom du ton direct (défaut : CutContour)",
     "spot color {name}":
         "ton direct {name}",
+    "SVG converted to EPS -> {file}":
+        "SVG converti en EPS -> {file}",
+    "SVG file converted to EPS.":
+        "Fichier SVG converti en EPS.",
+    "SVG file too large.":
+        "Fichier SVG trop volumineux.",
+    "SVG files that declare XML entities are not supported.":
+        "Les fichiers SVG qui déclarent des entités XML ne sont pas pris en charge.",
+    "SVG: only convert to EPS, without cut line (default output: <input>.eps)":
+        "SVG : convertir seulement en EPS, sans ligne de découpe (sortie par défaut : <entree>.eps)",
+    "Text is not converted: turn it into paths (outlines) before exporting the SVG.":
+        "Le texte n'est pas converti : vectorisez-le (texte en tracés) avant d'exporter le SVG.",
     "The file could only be partly read ({error}). The paths shown can still be used.":
         "Lecture incomplète du fichier ({error}). Les tracés affichés restent utilisables.",
     "The output file cannot be read back ({error}): nothing was written.":
@@ -194,16 +226,24 @@ CATALOGUE = {
         "Le fichier de sortie doit avoir un autre nom que le fichier ouvert.",
     "The server is not responding ({reason}).":
         "Le serveur ne répond pas ({reason}).",
+    "The SVG contains no shape that can be converted.":
+        "Le SVG ne contient aucune forme convertible.",
+    "The SVG has no usable size (width/height).":
+        "Le SVG n'a pas de dimensions utilisables (width/height).",
     "This browser is too old for the editor (Internet Explorer is not supported).":
         "Ce navigateur est trop ancien pour l'éditeur (Internet Explorer n'est pas pris en charge).",
+    "This is not an SVG file (root element: {tag}).":
+        "Ce n'est pas un fichier SVG (élément racine : {tag}).",
     "This path cannot be changed on its own: it is painted by an instruction shared with other paths.":
         "Ce tracé ne peut pas être modifié seul : il est peint par une instruction partagée avec d'autres.",
     "This path is already pure magenta in the file.":
         "Ce tracé est déjà en magenta pur dans le fichier.",
     "tolerance on each color component, 0..1 (default: 0.002)":
         "écart toléré sur chaque composante 0..1 (défaut : 0.002)",
-    "Turns the pure magenta paths of an EPS file into the CutContour spot color.":
-        "Transforme les tracés magenta pur d'un EPS en ton direct CutContour.",
+    "Transparency is approximated: semi-transparent colors are blended with white.":
+        "La transparence est approchée : les couleurs semi-transparentes sont mélangées avec du blanc.",
+    "Turns the pure magenta paths of an EPS or SVG file into the CutContour spot color.":
+        "Transforme les tracés magenta pur d'un EPS ou d'un SVG en ton direct CutContour.",
     "unexpected character “{char}”":
         "caractère inattendu « {char} »",
     "unknown name: {name}":
@@ -220,6 +260,8 @@ CATALOGUE = {
         "Attention : lecture incomplète du fichier ({error}).",
     "Warning: the file declares PostScript level 1; the Separation color space requires level 2.":
         "Attention : le fichier se déclare PostScript niveau 1 ; l'espace Separation requiert le niveau 2.",
+    "Warning: {message}":
+        "Attention : {message}",
     "Zoom in":
         "Zoom avant",
     "Zoom out":
@@ -276,10 +318,12 @@ CATALOGUE = {
         "{op} : clé inconnue {key}",
     "{width} pt stroke":
         "trait de {width} pt",
-    "“{name}” is not an EPS file (.eps extension expected).":
-        "« {name} » n'est pas un fichier EPS (extension .eps attendue).",
     "“{name}” is not an EPS file (it does not start with %!PS).":
         "« {name} » n'est pas un fichier EPS (il ne commence pas par %!PS).",
+    "“{name}” is not an EPS or SVG file (.eps or .svg extension expected).":
+        "« {name} » n'est pas un fichier EPS ou SVG (extension .eps ou .svg attendue).",
+    "“{name}”: {reason}":
+        "« {name} » : {reason}",
     "“{” without “}”":
         "« { » sans « } »",
     "“}” without “{”":

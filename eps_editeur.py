@@ -24,6 +24,7 @@ import webbrowser
 import crunchcutcontour as conv
 import eps_interpreteur as interp
 import i18n
+import svg_eps
 from i18n import tr
 
 MAGENTA = "1 0 1 setrgbcolor"
@@ -77,12 +78,21 @@ def apply_selection(text, paints, selection):
 
 class Editeur:
     """Un document ouvert. directory vaut None pour un fichier déposé dans le navigateur :
-    on ne connaît alors pas son dossier et le résultat est renvoyé en téléchargement."""
+    on ne connaît alors pas son dossier et le résultat est renvoyé en téléchargement.
+    Un SVG est converti en EPS à l'ouverture (svg_eps) ; on travaille ensuite sur cet EPS."""
 
     def __init__(self, data, name, directory, spot_name, tolerance):
         self.name = os.path.basename(name) or "fichier.eps"
         self.directory = directory
         self.spot_name, self.tolerance = spot_name, tolerance
+        self.svg = svg_eps.est_svg(data, self.name)
+        self.avertissements = []
+        if self.svg:
+            try:
+                eps, self.avertissements = svg_eps.convertir(data, self.name)
+            except svg_eps.SvgError as e:
+                raise ValueError(tr("“{name}”: {reason}", name=self.name, reason=e)) from None
+            data = eps.encode("latin-1")
         self.dos_parts = conv.split_dos_eps(data)
         ps_bytes = self.dos_parts[0] if self.dos_parts else data
         if not ps_bytes.startswith(b"%!PS"):
@@ -127,14 +137,17 @@ class Editeur:
             "erreur": self.error,
             "jeton": token,
             "telechargement": self.directory is None,
+            "svg": self.svg,
+            "avertissements": self.avertissements,
             "ton": self.spot_name,
-            "noms": {"cutcontour": f"{base}_{self.spot_name}.eps", "magenta": f"{base}_magenta.eps"},
+            "noms": {"cutcontour": f"{base}_{self.spot_name}.eps", "magenta": f"{base}_magenta.eps",
+                     "eps": f"{base}.eps"},
         }
         payload = json.dumps(donnees, ensure_ascii=False).replace("</", "<\\/")
         return fill_page(PAGE, token).replace("__DONNEES__", payload)
 
     def save(self, selection, mode, name):
-        if mode not in ("cutcontour", "magenta"):
+        if mode not in ("cutcontour", "magenta", "eps") or (mode == "eps" and not self.svg):
             return {"ok": False, "message": tr("Unknown save mode.")}
         if not isinstance(name, str) or not re.fullmatch(r"[^/\\:*?\"<>|\0]+\.eps", name, re.I) \
                 or name in (".eps", "..eps"):
@@ -145,6 +158,8 @@ class Editeur:
 
         chosen = {i for i in selection if isinstance(i, int) and 0 <= i < len(self.paints)
                   and self.paints[i].editable and self.paints[i].spot != self.spot_name}
+        if mode == "eps":
+            chosen = set()  # simple conversion du SVG : le tracé n'est pas modifié
         if mode == "magenta":
             chosen = {i for i in chosen if not self.magenta(self.paints[i])}
             if not chosen:
@@ -160,14 +175,14 @@ class Editeur:
         if error and not self.error:
             return {"ok": False, "message": tr("The output file cannot be read back ({error}): nothing was written.",
                                                error=error)}
-        expected = len(chosen | {i for i, p in enumerate(self.paints) if self.magenta(p)})
+        expected = len(chosen | {i for i, p in enumerate(self.paints) if self.magenta(p)}) if mode != "eps" else 0
         if sum(1 for p in check if self.magenta(p)) < expected:
             return {"ok": False, "message": tr("Check failed: some paths did not turn magenta. Nothing was written.")}
 
         data = text.encode("latin-1")
         if self.dos_parts:
             data = conv.join_dos_eps(data, *self.dos_parts[1:])
-        label = self.spot_name if mode == "cutcontour" else tr("pure magenta")
+        label = {"cutcontour": self.spot_name, "magenta": tr("pure magenta"), "eps": "EPS"}[mode]
         if out is None:
             return {"ok": True, "nom": name, "donnees": base64.b64encode(data).decode("ascii"),
                     "message": tr("Downloaded ({format}): {name}", format=label, name=name)}
@@ -481,12 +496,13 @@ if (!window.fetch || !window.Promise || !("noModule" in document.createElement("
     <button id="plus" title="[[Zoom in]]">+</button>
   </div>
   <button id="aucun">[[Deselect all]]</button>
-  <button id="ouvrir" title="[[Or drop an EPS file anywhere on the page]]">[[Open another file…]]</button>
-  <input type="file" id="choisir" accept=".eps,.epsf,.ps" hidden>
+  <button id="ouvrir" title="[[Or drop an EPS or SVG file anywhere on the page]]">[[Open another file…]]</button>
+  <input type="file" id="choisir" accept=".eps,.epsf,.ps,.svg,.svgz" hidden>
   <span class="espace"></span>
   <div class="groupe">
     <label><input type="radio" name="mode" value="cutcontour" checked> <span id="nom-ton"></span></label>
     <label><input type="radio" name="mode" value="magenta"> [[Pure magenta]]</label>
+    <label id="mode-eps" hidden title="[[Converted SVG, without cut line]]"><input type="radio" name="mode" value="eps"> [[EPS only]]</label>
   </div>
   <div class="groupe">
     <input type="text" id="nom" spellcheck="false" aria-label="[[Output file name]]">
@@ -513,7 +529,7 @@ if (!window.fetch || !window.Promise || !("noModule" in document.createElement("
 </div>
 <div id="alerte"></div>
 <div id="notification" role="status" aria-live="polite"></div>
-<div id="voile-depot">[[Drop the EPS file to open it]]</div>
+<div id="voile-depot">[[Drop the EPS or SVG file to open it]]</div>
 <div id="zone"><div id="papier"><svg id="dessin" xmlns="http://www.w3.org/2000/svg"></svg></div></div>
 <footer>
   <span id="info"></span>
@@ -538,10 +554,18 @@ function el(tag, attrs, parent) {
 
 $("fichier").textContent = "— " + D.fichier;
 $("nom-ton").textContent = D.ton;
+const alertes = [];
+if (D.svg) {
+  $("mode-eps").hidden = false;
+  alertes.push(t("SVG file converted to EPS."), ...D.avertissements);
+}
 if (D.erreur) {
+  alertes.push(t("The file could only be partly read ({error}). The paths shown can still be used.",
+                 {error: D.erreur}));
+}
+if (D.avertissements.length || D.erreur) {
   $("alerte").style.display = "block";
-  $("alerte").textContent = t("The file could only be partly read ({error}). The paths shown can still be used.",
-                               {error: D.erreur});
+  $("alerte").textContent = alertes.join(" ");
 }
 
 const [x0, y0, x1, y1] = D.bbox;
@@ -706,7 +730,7 @@ try {
   sessionStorage.removeItem(CLE_ETAT);
   if (etat && etat.fichier === D.fichier && etat.nb === D.traces.length) {
     for (const i of etat.selection) if (D.traces[i] && D.traces[i].e) selection.add(i);
-    if (etat.mode === "cutcontour" || etat.mode === "magenta") {
+    if (etat.mode === "cutcontour" || etat.mode === "magenta" || (etat.mode === "eps" && D.svg)) {
       document.querySelector(`input[name=mode][value=${etat.mode}]`).checked = true;
     }
     $("nom").value = etat.nom;
@@ -820,8 +844,8 @@ document.getElementById("langue").addEventListener("change", e => {
 DEPOT_JS = r"""
 async function ouvrirFichier(fichier) {
   if (!fichier) return;
-  if (!/\.(eps|epsf|ps)$/i.test(fichier.name)) {
-    signalerDepot(t("“{name}” is not an EPS file (.eps extension expected).", {name: fichier.name}), true);
+  if (!/\.(eps|epsf|ps|svg|svgz)$/i.test(fichier.name)) {
+    signalerDepot(t("“{name}” is not an EPS or SVG file (.eps or .svg extension expected).", {name: fichier.name}), true);
     return;
   }
   signalerDepot(t("Reading “{name}”…", {name: fichier.name}), false);
@@ -883,10 +907,10 @@ if (!window.fetch || !window.Promise || !("noModule" in document.createElement("
 </header>
 <main id="depot">
   <div id="cadre-depot">
-    <h2>[[Drop an EPS file here]]</h2>
+    <h2>[[Drop an EPS or SVG file here]]</h2>
     <p>[[Drag it from your file manager, or choose it.]]</p>
     <button class="principal" id="parcourir">[[Choose a file…]]</button>
-    <input type="file" id="choisir" accept=".eps,.epsf,.ps" hidden>
+    <input type="file" id="choisir" accept=".eps,.epsf,.ps,.svg,.svgz" hidden>
     <div id="etat-depot" role="status" aria-live="polite"></div>
   </div>
 </main>
