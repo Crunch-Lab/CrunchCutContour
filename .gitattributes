@@ -1,0 +1,5 @@
+# Fins de ligne fixées quel que soit core.autocrlf : LF partout (construire.sh doit
+# rester exécutable par sh), CRLF pour les scripts Windows.
+* text=auto eol=lf
+*.bat text eol=crlf
+*.eps binary
