@@ -1,5 +1,7 @@
 # CrunchCutContour
 
+**Français** · [English](README.en.md)
+
 Prépare des fichiers EPS ou SVG pour les imprimantes-découpeuses (Roland VersaWorks et les autres
 logiciels de découpe qui reconnaissent le ton direct `CutContour`) : les contours choisis
 deviennent une **ligne de découpe**, affichée en magenta pur (C0 M100 J0 N0). Le nom du ton
@@ -16,6 +18,7 @@ et gratuit**, sous licence GPL version 3 ou ultérieure.
 - [Téléchargement](#téléchargement)
 - [Utilisation](#utilisation)
 - [Ligne de commande](#ligne-de-commande)
+- [Langues](#langues)
 - [Ce que le programme modifie dans le fichier](#ce-que-le-programme-modifie-dans-le-fichier)
 - [Import SVG](#import-svg)
 - [Limites](#limites)
@@ -159,6 +162,9 @@ Depuis les sources, remplacez `CrunchCutContour` par `python3 crunchcutcontour.p
 Les noms français des options restent acceptés : `--sortie`, `--nom`, `--op-rvb`,
 `--op-cmjn`, `--langue`, `--pas-de-navigateur`, `--recadrer`, `--marge`.
 
+En mode `--auto`, si le fichier ne contient aucun magenta pur, rien n'est écrit et le
+programme se termine avec le code 1.
+
 Exemples :
 
 ```bash
@@ -189,9 +195,6 @@ L'interface (ligne de commande, aide, messages, pages de l'éditeur) existe en *
 
 Dans l'éditeur, le menu de langue en haut à droite change la langue de la page et des
 messages ; la sélection en cours est conservée.
-
-En mode `--auto`, si le fichier ne contient aucun magenta pur, rien n'est écrit et le
-programme se termine avec le code 1.
 
 ## Ce que le programme modifie dans le fichier
 
@@ -338,7 +341,7 @@ les fichiers sont alors dans les « artifacts » de l'exécution.
 | [eps_interpreteur.py](eps_interpreteur.py) | Interpréteur PostScript simplifié : exécute le fichier et relève chaque tracé, sa couleur et l'instruction source qui l'a peint |
 | [i18n.py](i18n.py) | Traduction : choix et détection de la langue, fonction `tr()`, traduction de l'aide d'argparse |
 | [catalogue_fr.py](catalogue_fr.py), [catalogue_en.py](catalogue_en.py) | Textes de chaque langue |
-| [tests/](tests) | Tests : traductions complètes, détection de la langue, conversion SVG |
+| [tests/](tests) | Tests : traductions complètes, détection de la langue, conversion SVG, recadrage |
 | [construire_exe.bat](construire_exe.bat) | Construction des exécutables Windows |
 | [construire.sh](construire.sh) | Construction des exécutables macOS et Linux |
 | [version_windows.py](version_windows.py) | Propriétés des exécutables Windows (société, copyright, version) |
@@ -356,8 +359,3 @@ termes de la **licence publique générale GNU (GPL)**, version 3 ou (à votre c
 ultérieure, telle que publiée par la Free Software Foundation. Il est distribué dans l'espoir
 qu'il sera utile, mais **sans aucune garantie**. Le texte complet de la licence est dans
 [LICENSE](LICENSE).
-
-Le copyright, l'auteur et la licence sont définis une seule fois, dans
-[crunchcutcontour.py](crunchcutcontour.py) (`COPYRIGHT`, `AUTEUR`, `LICENCE`) ; ils sont repris
-par `--version`, l'aide, le pied des pages de l'éditeur et les propriétés des exécutables
-Windows. Chaque fichier source porte la mention `SPDX-License-Identifier: GPL-3.0-or-later`.
