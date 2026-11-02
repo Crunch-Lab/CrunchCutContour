@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # Copyright © 2026 UTBM CrunchLab
 # Auteur : Alexandre Willaume
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Éditeur interactif : affiche un EPS dans le navigateur et laisse choisir au clic
 les tracés à passer en magenta pur, puis enregistre en magenta ou en CutContour.
 
@@ -300,7 +301,8 @@ def fill_page(template, token):
             .replace("__LANG__", i18n.langue())
             .replace("__ANCIEN__", json.dumps(ancien))
             .replace("__TRADUCTIONS__", _json_script(i18n.catalogue()))
-            .replace("__CREDIT__", html.escape(f"{conv.COPYRIGHT} — " + tr("Author: {name}", name=conv.AUTEUR)))
+            .replace("__CREDIT__", html.escape(f"{conv.COPYRIGHT} — " + tr("Author: {name}", name=conv.AUTEUR)
+                                               + f" — {conv.LICENCE}"))
             .replace("__JETON__", json.dumps(token)))
 
 

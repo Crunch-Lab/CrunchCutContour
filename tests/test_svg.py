@@ -1,5 +1,6 @@
 # Copyright © 2026 UTBM CrunchLab
 # Auteur : Alexandre Willaume
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Tests de la conversion SVG -> EPS (svg_eps.py) et de son intégration.
 
 Lancer : python3 -m unittest discover tests

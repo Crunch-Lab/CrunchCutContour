@@ -1,5 +1,6 @@
 # Copyright © 2026 UTBM CrunchLab
 # Auteur : Alexandre Willaume
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Anglais : la langue de référence du code, rien à traduire.
 
 Modèle pour une nouvelle langue : copier catalogue_fr.py, traduire chaque valeur, puis

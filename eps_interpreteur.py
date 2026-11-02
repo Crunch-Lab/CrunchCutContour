@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # Copyright © 2026 UTBM CrunchLab
 # Auteur : Alexandre Willaume
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Mini interpréteur PostScript : exécute un EPS et relève chacun de ses tracés.
 
 Le fichier n'est pas rastérisé : chaque fill / eofill / stroke est relevé comme

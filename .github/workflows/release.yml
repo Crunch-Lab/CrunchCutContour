@@ -1,5 +1,6 @@
 # Copyright © 2026 UTBM CrunchLab
 # Auteur : Alexandre Willaume
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 # Construit CrunchCutContour pour Windows, macOS et Linux, et publie une release GitHub
 # quand on pousse une étiquette vX.Y.Z (égale à VERSION dans crunchcutcontour.py).

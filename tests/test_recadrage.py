@@ -1,5 +1,6 @@
 # Copyright © 2026 UTBM CrunchLab
 # Auteur : Alexandre Willaume
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Tests du recadrage de la page sur le dessin.
 
 Lancer : python3 -m unittest discover tests

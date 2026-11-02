@@ -1,6 +1,7 @@
 CrunchCutContour prépare des fichiers EPS ou SVG pour les imprimantes-découpeuses : les contours
 choisis à la souris deviennent une ligne de découpe (ton direct **CutContour**, magenta pur).
-Chaque fichier ci-dessous est autonome : rien à installer.
+Chaque fichier ci-dessous est autonome : rien à installer. Logiciel libre et gratuit, sous
+licence GPL version 3 ou ultérieure.
 
 ## Dans cette version
 
@@ -63,4 +64,4 @@ n'apparaissent que comme un cadre gris ; les dégradés SVG deviennent une coule
 
 ---
 
-Copyright © 2026 UTBM CrunchLab — Auteur : Alexandre Willaume
+Copyright © 2026 UTBM CrunchLab — Auteur : Alexandre Willaume — Licence GPL-3.0-or-later

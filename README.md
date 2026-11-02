@@ -8,7 +8,8 @@ sont convertis en EPS ; le programme sert aussi de simple convertisseur SVG → 
 
 On choisit les contours à la souris, dans le navigateur ; une conversion automatique est aussi
 possible en ligne de commande. Le programme est écrit en Python sans aucune dépendance, et il
-est distribué sous forme d'exécutables autonomes : rien à installer.
+est distribué sous forme d'exécutables autonomes : rien à installer. C'est un logiciel **libre
+et gratuit**, sous licence GPL version 3 ou ultérieure.
 
 ## Sommaire
 
@@ -21,7 +22,7 @@ est distribué sous forme d'exécutables autonomes : rien à installer.
 - [Lancer depuis les sources](#lancer-depuis-les-sources)
 - [Construire les exécutables](#construire-les-exécutables)
 - [Organisation du code](#organisation-du-code)
-- [Auteur et droits](#auteur-et-droits)
+- [Auteur et licence](#auteur-et-licence)
 
 ## Téléchargement
 
@@ -342,13 +343,21 @@ les fichiers sont alors dans les « artifacts » de l'exécution.
 | [construire.sh](construire.sh) | Construction des exécutables macOS et Linux |
 | [version_windows.py](version_windows.py) | Propriétés des exécutables Windows (société, copyright, version) |
 | [NOTES_DE_VERSION.md](NOTES_DE_VERSION.md) | Texte de la release GitHub |
+| [LICENSE](LICENSE) | Licence GPL version 3 |
 
-## Auteur et droits
+## Auteur et licence
 
 Copyright © 2026 UTBM CrunchLab.
 
 Auteur : Alexandre Willaume.
 
-Le nom, l'auteur et le copyright sont définis une seule fois, dans
-[crunchcutcontour.py](crunchcutcontour.py) (`COPYRIGHT`, `AUTEUR`) ; ils sont repris par
-`--version`, l'aide, le pied des pages de l'éditeur et les propriétés des exécutables Windows.
+CrunchCutContour est un logiciel libre : vous pouvez le redistribuer et le modifier selon les
+termes de la **licence publique générale GNU (GPL)**, version 3 ou (à votre choix) toute version
+ultérieure, telle que publiée par la Free Software Foundation. Il est distribué dans l'espoir
+qu'il sera utile, mais **sans aucune garantie**. Le texte complet de la licence est dans
+[LICENSE](LICENSE).
+
+Le copyright, l'auteur et la licence sont définis une seule fois, dans
+[crunchcutcontour.py](crunchcutcontour.py) (`COPYRIGHT`, `AUTEUR`, `LICENCE`) ; ils sont repris
+par `--version`, l'aide, le pied des pages de l'éditeur et les propriétés des exécutables
+Windows. Chaque fichier source porte la mention `SPDX-License-Identifier: GPL-3.0-or-later`.

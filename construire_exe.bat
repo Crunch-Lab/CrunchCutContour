@@ -1,6 +1,7 @@
 @echo off
 rem Copyright (c) 2026 UTBM CrunchLab
 rem Auteur : Alexandre Willaume
+rem SPDX-License-Identifier: GPL-3.0-or-later
 rem Construit les executables Windows autonomes (Python inclus) dans dist\ :
 rem   construire_exe.bat win7    CrunchCutContour-<version>-windows7-8-x86.exe
 rem                              Windows 7 SP1, 8 et 8.1 (32 et 64 bits) ; Python 3.8 32 bits,

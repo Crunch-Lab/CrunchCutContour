@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # Copyright © 2026 UTBM CrunchLab
 # Auteur : Alexandre Willaume
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Convertit les couleurs magenta pur d'un fichier EPS en ton direct CutContour.
 
 Par défaut, le fichier s'ouvre dans un éditeur (navigateur) où l'on clique sur
@@ -38,6 +39,7 @@ from i18n import tr
 VERSION = "1.0.0"
 COPYRIGHT = "Copyright © 2026 UTBM CrunchLab"
 AUTEUR = "Alexandre Willaume"
+LICENCE = "GPL-3.0-or-later"
 
 MAGENTA_RVB = (1.0, 0.0, 1.0)
 MAGENTA_CMJN = (0.0, 1.0, 0.0, 0.0)
@@ -304,8 +306,9 @@ def main():
     parser = argparse.ArgumentParser(
         prog="CrunchCutContour",
         description=tr("Turns the pure magenta paths of an EPS or SVG file into the CutContour spot color."),
-        epilog=f"{COPYRIGHT} — {auteur}", formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--version", action="version", version=f"CrunchCutContour {VERSION}\n{COPYRIGHT}\n{auteur}",
+        epilog=f"{COPYRIGHT} — {auteur} — {LICENCE}", formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--version", action="version", version=f"CrunchCutContour {VERSION}\n{COPYRIGHT}\n{auteur}\n"
+                                + tr("License: {license} (free software, see LICENSE)", license=LICENCE),
                         help=tr("show program's version number and exit"))
     parser.add_argument("entree", nargs="?", metavar=tr("FILE"),
                         help=tr("source EPS or SVG file (without a file, the editor waits for one to be "

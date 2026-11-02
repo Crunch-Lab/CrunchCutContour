@@ -1,5 +1,6 @@
 # Copyright © 2026 UTBM CrunchLab
 # Auteur : Alexandre Willaume
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Écrit le fichier de version Windows passé à PyInstaller (--version-file).
 
 Ces informations apparaissent dans Propriétés → Détails de l'exécutable : société,
@@ -25,7 +26,7 @@ def contenu(nom_exe):
         "OriginalFilename": nom_exe,
         "ProductName": "CrunchCutContour",
         "ProductVersion": app.VERSION,
-        "Comments": f"Author: {app.AUTEUR}",
+        "Comments": f"Author: {app.AUTEUR} - License: {app.LICENCE}",
     }
     lignes = ",\n".join(f"        StringStruct({k!r}, {v!r})" for k, v in chaines.items())
     return f"""VSVersionInfo(

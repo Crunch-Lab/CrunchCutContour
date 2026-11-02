@@ -1,6 +1,7 @@
 #!/bin/sh
 # Copyright © 2026 UTBM CrunchLab
 # Auteur : Alexandre Willaume
+# SPDX-License-Identifier: GPL-3.0-or-later
 # Construit l'exécutable autonome macOS ou Linux (Python inclus) dans dist/ :
 #   dist/CrunchCutContour-<version>-<macos|linux>-<arch>        l'exécutable
 #   dist/CrunchCutContour-<version>-<macos|linux>-<arch>.zip    (macOS) ou .tar.gz (Linux)

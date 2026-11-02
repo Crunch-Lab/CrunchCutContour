@@ -1,5 +1,6 @@
 # Copyright © 2026 UTBM CrunchLab
 # Auteur : Alexandre Willaume
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Vérifie que chaque texte de l'interface est traduit dans chaque langue.
 
 Les textes sont relevés dans le code : tr("…") en Python, t("…") en JavaScript et

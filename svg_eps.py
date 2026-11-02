@@ -1,5 +1,6 @@
 # Copyright © 2026 UTBM CrunchLab
 # Auteur : Alexandre Willaume
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Conversion SVG -> EPS (PostScript niveau 2), sans dépendance.
 
 Gère : path (toutes les commandes, arcs compris), rect (coins arrondis), circle, ellipse,

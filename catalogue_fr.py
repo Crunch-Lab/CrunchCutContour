@@ -1,5 +1,6 @@
 # Copyright © 2026 UTBM CrunchLab
 # Auteur : Alexandre Willaume
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Traduction française de l'interface.
 
 CATALOGUE : texte anglais du code -> texte français. Les {noms} entre accolades sont
@@ -148,6 +149,8 @@ CATALOGUE = {
         "ligne {line} : {error}",
     "logical operation: booleans or integers expected":
         "opération logique : booléens ou entiers attendus",
+    "License: {license} (free software, see LICENSE)":
+        "Licence : {license} (logiciel libre, voir LICENSE)",
     "Margin":
         "Marge",
     "Markers (arrowheads…) are ignored.":
