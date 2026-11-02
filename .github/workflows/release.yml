@@ -96,5 +96,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # {{VERSION}} des notes remplacé par le numéro de version (v1.2.3 -> 1.2.3)
+          sed "s/{{VERSION}}/${GITHUB_REF_NAME#v}/g" NOTES_DE_VERSION.md > notes.md
           gh release create "$GITHUB_REF_NAME" artefacts/* \
-            --title "CrunchCutContour $GITHUB_REF_NAME" --notes-file NOTES_DE_VERSION.md
+            --title "CrunchCutContour $GITHUB_REF_NAME" --notes-file notes.md

@@ -315,8 +315,9 @@ Le workflow [.github/workflows/release.yml](.github/workflows/release.yml) const
 cinq fichiers (Windows 7/8, Windows 10/11, macOS Intel, macOS Apple Silicon, Linux) sur les
 machines de GitHub, avec les mêmes scripts.
 
-1. Mettre à jour `VERSION` dans [crunchcutcontour.py](crunchcutcontour.py) et
-   [NOTES_DE_VERSION.md](NOTES_DE_VERSION.md).
+1. Mettre à jour `VERSION` dans [crunchcutcontour.py](crunchcutcontour.py) et le texte de
+   [NOTES_DE_VERSION.md](NOTES_DE_VERSION.md), qui décrit la seule version publiée ; `{{VERSION}}`
+   y est remplacé automatiquement par le numéro de version.
 2. Pousser l'étiquette correspondante, par exemple :
    ```bash
    git tag v1.0.0 && git push origin v1.0.0
